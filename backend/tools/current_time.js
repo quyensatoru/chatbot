@@ -13,3 +13,5 @@ export const current_time = tool(
         schema: CurrentTimeInput,
     }
 );
+
+export const currentTool = [current_time]

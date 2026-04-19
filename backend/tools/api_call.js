@@ -9,7 +9,7 @@ const ApiCallInput = z.object({
     body: z.record(z.unknown()).optional().default({}).describe("Optional body to include in the request."),
 });
 
-export const api_call = tool(
+const api_call = tool(
     async (input) => {
         try {
             const response = await axios({
@@ -29,3 +29,5 @@ export const api_call = tool(
         schema: ApiCallInput,
     }
 );
+
+export const apiTool = [api_call]

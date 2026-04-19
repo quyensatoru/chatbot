@@ -7,7 +7,6 @@ let instance = {
     chroma: null,
 };
 
-// Wrap để ChromaDB nhận ra
 const chromaEmbedder = {
     generate: async (texts) => {
         return await embeddingModel.embedDocuments(texts);
@@ -22,43 +21,35 @@ const chromaEmbedder = {
  */
 
 /**
- * 
  * @returns {Promise<ChromaDBInstance>}
  */
 export const ChromaDB = async () => {
-  if (instance.chroma) return instance;
+    if (instance.chroma) {
+        return instance;
+    }
 
-  const chroma = new ChromaClient({
-    host: process.env.CHROMA_HOST || "localhost",
-    port: process.env.CHROMA_PORT || 8000,
-    database: process.env.CHROMA_DB,
-  });
+    const chroma = new ChromaClient({
+        host: process.env.CHROMA_HOST || "localhost",
+        port: process.env.CHROMA_PORT || 8000,
+        database: process.env.CHROMA_DB,
+    });
 
-  console.log(`ChromaDB vector DB connected`);
+    console.log("ChromaDB vector DB connected");
 
-  // delete collection if needed
-  // await chroma.deleteCollection({
-  //     name: "search",
-  // });
-  
-  const documentCollection = await chroma.getOrCreateCollection({
-    name: "document",
-    embeddingFunction: chromaEmbedder
-  });
+    const documentCollection = await chroma.getOrCreateCollection({
+        name: "document",
+        embeddingFunction: chromaEmbedder,
+    });
 
-  const searchCollection = await chroma.getOrCreateCollection({
-    name: "search",
-  });
+    const searchCollection = await chroma.getOrCreateCollection({
+        name: "search",
+    });
 
-  instance = {
-    chroma,
-    documentCollection,
-    searchCollection,
-  };
+    instance = {
+        chroma,
+        documentCollection,
+        searchCollection,
+    };
 
-  return instance;
+    return instance;
 };
-
-const db = await ChromaDB();
-
-export default db;

@@ -9,6 +9,8 @@ const DocumentSchema = new Schema({
     fileSize: { type: Number, required: true },
     chunks: { type: Number, required: true },
     chunkIds: [{ type: String }],
+    externalDocumentId: { type: String, index: true },
+    indexedStrategies: [{ type: String }],
 }, {
     timestamps: true,
     versionKey: false

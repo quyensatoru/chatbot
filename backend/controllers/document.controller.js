@@ -1,5 +1,4 @@
 import DocumentService from "../services/document.service.js";
-import VectorService from "../services/vector.service.js";
 
 const DocumentController = {
     all: async (req, res) => {

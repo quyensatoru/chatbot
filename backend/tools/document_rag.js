@@ -1,10 +1,22 @@
 import { tool } from "langchain";
-import VectorService from "../services/vector.service.js";
+import RagService from "../services/rag.service.js";
 import * as z from "zod";
 
-const retrieve = async (input) => await VectorService.query(input);
+const retrieve = async ({ query, top_k }) => {
+    const response = await RagService.query({
+        query,
+        topK: top_k,
+    });
 
-export const document_rag = tool(retrieve, {
+    return {
+        answer: response.answer,
+        sources: response.sources || [],
+        strategies: response.selected_strategies || [],
+        retrievals: response.retrievals || {},
+    };
+};
+
+const document_rag = tool(retrieve, {
     name: "document_rag",
     description: `Retrieve relevant information from the document knowledge base (RAG system).
 
@@ -28,3 +40,5 @@ IMPORTANT:
             .describe("Number of chunks to return"),
     }),
 })
+
+export const documentTools = [document_rag]

@@ -17,7 +17,7 @@ const InitAgent = () => {
         model: openChatModel,
         tools: tools,
         name: "chatbot-agent",
-        systemPrompt: SYSTEM_SUMMARY_PROMPT
+        systemPrompt: SYSTEM_SUMMARY_PROMPT,
     })
 
     return agent;

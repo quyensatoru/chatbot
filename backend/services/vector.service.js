@@ -4,28 +4,29 @@ import { CSVLoader } from "@langchain/community/document_loaders/fs/csv";
 import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
 import { JSONLoader } from "@langchain/classic/document_loaders/fs/json";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 import * as path from "path";
-import fs from 'fs/promises';
-import db from "../config/chorma.config.js";
+import fs from "fs/promises";
+
+import { ChromaDB } from "../config/chorma.config.js";
 import documentModel from "../models/document.model.js";
 
 export const separators = [
-  "\n## ",       // markdown header
-  "\n### ",
-  "\n#### ",
-  "\n###",
-  "\n##",
-  "\n#",
-  "```",
-  "\n1)", "\n2)", "\n3)", "\n4)",// code block
-  "\n\n",        // paragraph
-  "\n",          // line
-  ". ", "? ", "! ", // sentence
-  "; ", ": ",
-  ", ",
-  " ",           // word
-  ""             // char fallback
+    "\n## ",
+    "\n### ",
+    "\n#### ",
+    "\n###",
+    "\n##",
+    "\n#",
+    "```",
+    "\n1)", "\n2)", "\n3)", "\n4)",
+    "\n\n",
+    "\n",
+    ". ", "? ", "! ",
+    "; ", ": ",
+    ", ",
+    " ",
+    "",
 ];
 
 const VectorService = {
@@ -33,48 +34,45 @@ const VectorService = {
         const ext = path.extname(filePath).toLowerCase();
         let loader;
 
-        const chunkSize = ext === '.pdf' ? 600 : 900;
-        const chunkOverlap = ext === '.pdf' ? 150 : 200;
+        const chunkSize = ext === ".pdf" ? 600 : 900;
+        const chunkOverlap = ext === ".pdf" ? 150 : 200;
 
         switch (ext) {
-            case '.pdf':
+            case ".pdf":
                 loader = new PDFLoader(filePath);
-            break;
+                break;
 
-            case '.docx':
-            case '.doc':
+            case ".docx":
+            case ".doc":
                 loader = new DocxLoader(filePath);
-            break;
+                break;
 
-            case '.txt':
-            case '.md':
-            case '.markdown':
+            case ".txt":
+            case ".md":
+            case ".markdown":
                 loader = new TextLoader(filePath);
-            break;
+                break;
 
-            case '.json':
+            case ".json":
                 loader = new JSONLoader(filePath);
+                break;
 
-            case '.csv': 
+            case ".csv":
                 loader = new CSVLoader(filePath);
+                break;
 
             default:
                 throw new Error(`Unsupported file type: ${ext}`);
         }
-        
+
         const docs = await loader.load();
-
         const splitter = new RecursiveCharacterTextSplitter({
-            chunkSize: chunkSize,
-            chunkOverlap: chunkOverlap,
-            separators: separators
+            chunkSize,
+            chunkOverlap,
+            separators,
         });
-
-
         const allSplits = await splitter.splitDocuments(docs);
-
         const texts = allSplits.map((doc) => doc.pageContent);
-        
         const metadatas = allSplits.map((doc) => ({
             source: doc.metadata.source ?? "",
             pdf_version: doc.metadata.pdf?.version ?? "",
@@ -84,19 +82,21 @@ const VectorService = {
             loc_lines_to: doc.metadata.loc?.lines?.to ?? 0,
         }));
         const docIds = allSplits.map(() => uuidv4());
+        const db = await ChromaDB();
+
         await db.documentCollection.add({
             ids: docIds,
             documents: texts,
-            metadatas: metadatas,
+            metadatas,
         });
 
         const fileStats = await fs.stat(filePath);
 
         await documentModel.create({
             fileName: path.basename(filePath),
-            filePath: filePath,
+            filePath,
             mimeType: ext,
-            fileSize: (fileStats.size / 1024).toFixed(2), // size in KB
+            fileSize: (fileStats.size / 1024).toFixed(2),
             chunks: allSplits.length,
             chunkIds: docIds,
         });
@@ -104,39 +104,46 @@ const VectorService = {
 
     query: async ({ query, topK = 5 }) => {
         try {
+            const db = await ChromaDB();
             const context = await db.documentCollection.query({
                 queryTexts: [query],
-                topK: topK * 2, // Lấy nhiều hơn topK để tính confidence tốt hơn
+                topK: topK * 2,
                 includeMetadata: true,
                 nResults: topK,
-                include: ['documents', 'metadatas', 'distances'],
+                include: ["documents", "metadatas", "distances"],
             });
 
-            const sources = [...new Set(context.metadatas[0].map((m) => path.basename(m.source || m.fileName)))];
+            const sources = [
+                ...new Set(
+                    context.metadatas[0].map((item) =>
+                        path.basename(item.source || item.fileName)
+                    )
+                ),
+            ];
 
-            const validDistances = context.distances[0]?.filter((d) => d !== null);
-            const averageDistance = validDistances && validDistances.length > 0
-                ? validDistances.reduce((a, b) => a + b, 0) / validDistances.length
+            const validDistances = context.distances[0]?.filter((distance) => distance !== null);
+            const averageDistance = validDistances?.length
+                ? validDistances.reduce((left, right) => left + right, 0) / validDistances.length
                 : 1;
             const confidence = Math.max(0, Math.min(1, 1 - averageDistance / 2));
-
-
             const document = context.documents[0].join("\n\n");
 
             return {
                 document,
                 sources,
                 confidence,
-            }
-        } catch (e) {
-            console.error(e)
+            };
+        } catch (error) {
+            console.error(error);
         }
     },
+
     deleteCollection: async (name) => {
+        const db = await ChromaDB();
         await db.chroma.deleteCollection({
-            name: name,
+            name,
         });
-    }
+    },
 };
 
 export default VectorService;

@@ -7,6 +7,8 @@ export default function ChatInterface({ documents }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
+
+  console.log("conversationId: ", conversationId)
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -31,7 +33,7 @@ export default function ChatInterface({ documents }) {
 
       if (response.success) {
         if (!conversationId) {
-          setConversationId(response.data.conversationId);
+          setConversationId(response.data.response?.conversationId);
         }
 
         setMessages((prev) => [

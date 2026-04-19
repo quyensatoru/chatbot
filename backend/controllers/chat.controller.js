@@ -1,52 +1,29 @@
-import db from "../config/chorma.config.js";
-import { openChatModel } from "../config/llm.config.js";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { v4 as uuidv4 } from 'uuid';
-import VectorService from "../services/vector.service.js";
 import AgentService from "../services/agent.service.js";
-import { SYSTEM_SUMMARY_PROMPT } from "../helper/prompt.js";
-import { HumanMessage } from "langchain";
-
-
+import RagService from "../services/rag.service.js";
+import { getSession, saveSession } from '../helper/storage.js';
 
 const ChatController = {
     chat: async (req, res) => {
         try {
-            const { query } = req.body;
+            const { query, strategy } = req.body;
 
             if (!query) {
                 return res.status(400).json({ success: false, error: 'Query is required' });
             }
 
-            const {
-                document,
-                sources,
-                confidence
-            } = await VectorService.query({ query, topK: 5 });
-
-            const template = ChatPromptTemplate.fromMessages([
-                ['system', SYSTEM_SUMMARY_PROMPT],
-                [
-                    'user', 
-                    `Based on the following documents:
-{context}
-Answer this question: {question}
-Provide a clear, accurate response.
-`]
-            ])
-
-            const chain = template.pipe(openChatModel);
-
-            const result = await chain.invoke({
-                context: document,
-                question: query,
+            const result = await RagService.query({
+                query,
+                topK: 5,
+                strategy,
             });
 
             const response = {
                 id: uuidv4(),
-                answer: result.content,
-                confidence: confidence,
-                sources: sources,
+                answer: result.answer,
+                confidence: result.confidence || 0,
+                sources: result.sources || [],
+                selectedStrategies: result.selected_strategies || [],
                 timestamp: new Date(),
             }
 
@@ -58,25 +35,49 @@ Provide a clear, accurate response.
     },
     agent: async (req, res) => {
         try {
-            const { query } = req.body;
+            let { query, conversationId } = req.body;
 
             if (!query) {
                 return res.status(400).json({ success: false, error: 'Query is required' });
             }
 
-            const result = await AgentService.chat([
-                {
-                    role: "user", content: query
-                }
-            ]);
+            if(!conversationId) {
+                conversationId = uuidv4();
+            }
+
+            console.log("conversationId: ", conversationId)
+
+            let history = getSession(conversationId);
+
+            console.log("history: ", history)
+
+            const messages = [
+                ...history,
+                { role: "user", content: query }
+            ];
+
+            const result = await AgentService.chat(messages);
             const lastMessage = result[result.length - 1];
-            
+            console.log("lastMessage: ", lastMessage.content)
+
+            history.push({ role: "user", content: query });
+            history.push({ role: "ai", content: lastMessage.content });
+
+            history = history.slice(-10);
+
+            saveSession(conversationId, history);
+
             const response = {
                 id: uuidv4(),
                 answer: lastMessage.content,
+                confidence: lastMessage.confidence || 0,
+                sources: lastMessage.sources || [],
+                selectedStrategies: lastMessage.selectedStrategies || [],
                 timestamp: new Date(),
-            }
-            return res.status(200).json({ success: true, data: { response: response } });
+                conversationId,
+            };
+
+            return res.status(200).json({ success: true, data: { response } });
         } catch (err) {
             console.error("error: " + err.message);
             return res.status(500).json({ success: false, error: 'Agent chat failed' });

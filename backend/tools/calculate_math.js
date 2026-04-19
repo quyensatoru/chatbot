@@ -6,7 +6,7 @@ const CalculateMathInput = z.object({
     expression: z.string().min(1).describe("Mathematical expression to evaluate."),
 });
 
-export const calculate_math = tool(
+const calculate_math = tool(
     async (input) => {
         try {
             const result = evaluate(input.expression);
@@ -21,3 +21,5 @@ export const calculate_math = tool(
         schema: CalculateMathInput,
     }
 );
+
+export const calculateTools = [calculate_math]
