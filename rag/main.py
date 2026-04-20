@@ -122,9 +122,16 @@ async def delete_document(document_id: str):
 if __name__ == "__main__":
     import uvicorn
 
+    rag_dir = os.path.dirname(os.path.abspath(__file__))
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=int(os.getenv("RAG_PORT", "8001")),
-        reload=False,
+        reload=True,
+        reload_dirs=[rag_dir],
+        reload_includes=["*.py"],
+        reload_excludes=[
+            "data/*",
+            "__pycache__",
+        ],
     )

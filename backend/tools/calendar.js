@@ -14,7 +14,7 @@ export const getEventTypesTool = new DynamicStructuredTool({
     name: "get_event_types",
     description:
         "Lấy danh sách các loại lịch hẹn (event types). Dùng khi cần chọn loại meeting phù hợp.",
-    schema: z.object({}),
+    schema: z.object({}).strict(),
     func: async () => {
         logger.info("Tool: get_event_types");
 
@@ -28,7 +28,7 @@ export const getEventTypesTool = new DynamicStructuredTool({
                 })
             );
 
-            const eventTypes = (res.data.event_types || []).map((e) => ({
+            const eventTypes = (res.data.data || []).map((e) => ({
                 id: e.id,
                 title: e.title,
                 slug: e.slug,
@@ -45,13 +45,10 @@ export const getEventTypesTool = new DynamicStructuredTool({
     },
 });
 
-
-
-
 export const createEventTypeTool = new DynamicStructuredTool({
     name: "create_event_type",
     description:
-        "Tạo loại lịch hẹn mới (event type). Dùng khi chưa có loại phù hợp.",
+        "Tạo loại lịch hẹn (event type template) — chỉ là mẫu cấu hình, KHÔNG đặt lịch hẹn cụ thể, KHÔNG nhận timestamp/ngày giờ. Dùng trước create_calendar_event khi chưa có loại phù hợp.",
     schema: z.object({
         lengthInMinutes: z.number().describe("Duration of the event in minutes (required)"),
         title: z.string().describe("Title of the event type (required)"),
@@ -62,7 +59,7 @@ export const createEventTypeTool = new DynamicStructuredTool({
         locations: z.array(z.object({
             type: z.string(),
             integration: z.string().optional(),
-        })).optional().describe("Defaults to cal-video. Supported integrations via API: cal-video, google-meet, office365-video, zoom"),
+        })).optional().describe("Supported integrations via API: cal-video, google-meet, office365-video, zoom"),
         disableGuests: z.boolean().optional(),
         slotInterval: z.number().optional(),
         minimumBookingNotice: z.number().optional().describe("Minutes before event a booking can be made"),
@@ -74,15 +71,25 @@ export const createEventTypeTool = new DynamicStructuredTool({
         successRedirectUrl: z.string().url().optional(),
         customName: z.string().optional(),
         hideOrganizerEmail: z.boolean().optional(),
-    }),
+    }).strict(),
     func: async (input) => {
         logger.info("Tool: create_event_type", input);
+        const allowedKeys = [
+            "lengthInMinutes",
+            "title",
+            "slug",
+            "description",
+            "lengthInMinutesOptions",
+        ];
 
         try {
+            const cleanInput = Object.fromEntries(
+                Object.entries(input).filter(([k]) => allowedKeys.includes(k))
+            );
             const res = await withRetry(() =>
                 axios.post(
                     `${config.cal.baseUrl}/event-types`,
-                    input,
+                    cleanInput,
                     {
                         headers: {
                             ...getHeaders(),
@@ -94,10 +101,9 @@ export const createEventTypeTool = new DynamicStructuredTool({
 
             return ok({
                 id: res.data.id,
-                title,
-                length,
+                title: input.title,
+                lengthInMinutes: input.lengthInMinutes,
                 slug: res.data.slug,
-                status: "created",
             });
         } catch (err) {
             logger.error("create_event_type error", { error: err.message });
@@ -110,10 +116,10 @@ export const getCalendarEventsTool = new DynamicStructuredTool({
     name: "get_calendar_events",
     description: "Lấy danh sách booking từ Cal.com",
     schema: z.object({
-        timeMin: z.string(),
-        timeMax: z.string().optional(),
-        maxResults: z.number().int().min(1).max(50).default(10),
-    }),
+        timeMin: z.string().describe("Thời gian bắt đầu lọc booking (ISO 8601)"),
+        timeMax: z.string().optional().describe("Thời gian kết thúc lọc (ISO 8601)"),
+        maxResults: z.number().int().min(1).max(50).default(10).describe("Số booking tối đa trả về"),
+    }).strict(),
     func: async ({ timeMin, timeMax, maxResults }) => {
         logger.info("Tool: get_calendar_events", { timeMin, timeMax });
 
@@ -148,52 +154,93 @@ export const getCalendarEventsTool = new DynamicStructuredTool({
     },
 });
 
+const AttendeeSchema = z.object({
+    name: z.string().describe("Tên attendee"),
+    timeZone: z.string().describe("Timezone, vd: America/New_York"),
+    email: z.string().email().optional().describe("Email attendee"),
+    phoneNumber: z.string().optional().describe("SĐT quốc tế, vd: +919876543210"),
+    language: z.string().optional().default("en").describe("Ngôn ngữ: en, vi, it..."),
+}).strict();
+
+const CreateBookingSchema = z.object({
+    // Required
+    start: z
+        .string()
+        .describe("Thời gian bắt đầu ISO 8601 UTC, vd: 2026-04-20T09:00:00Z"),
+    attendee: AttendeeSchema,
+
+    // Event type (cần eventTypeId HOẶC eventTypeSlug + username/teamSlug)
+    eventTypeId: z.number().int().optional().describe("ID event type"),
+    eventTypeSlug: z.string().optional().describe("Slug event type"),
+    username: z.string().optional().describe("Username chủ event type"),
+    teamSlug: z.string().optional().describe("Team slug nếu thuộc team"),
+    organizationSlug: z.string().optional().describe("Org slug (optional)"),
+
+    // Optional
+    guests: z.array(z.string().email()).optional().describe("Email khách mời"),
+    location: z
+        .record(z.any())
+        .optional()
+        .describe("Object location, vd: { type: 'integration', integration: 'office365-video' }"),
+    bookingFieldsResponses: z
+        .record(z.any())
+        .optional()
+        .describe("Giá trị cho custom booking fields"),
+    metadata: z
+        .record(z.string())
+        .optional()
+        .describe("Metadata tuỳ chỉnh (<=50 keys)"),
+    lengthInMinutes: z
+        .number()
+        .int()
+        .optional()
+        .describe("Độ dài booking nếu event type có nhiều lựa chọn"),
+    emailVerificationCode: z.string().optional(),
+    routing: z
+        .object({
+            responseId: z.number().int(),
+            teamMemberIds: z.array(z.number().int()).optional(),
+            skipContactOwner: z.boolean().optional(),
+            crmAppSlug: z.string().optional(),
+            crmOwnerRecordType: z.string().optional(),
+        })
+        .optional(),
+    allowConflicts: z.boolean().optional(),
+    allowBookingOutOfBounds: z.boolean().optional(),
+}).strict();
+
+
 export const createCalendarEventTool = new DynamicStructuredTool({
     name: "create_calendar_event",
-    description: "Tạo booking trên Cal.com, Nếu eventTypeId chưa có hãy gọi đến các tool như get_event_types, create_event_types để lấy",
-    schema: z.object({
-        title: z.string(),
-        startTime: z.string(),
-        endTime: z.string(),
-        description: z.string().optional(),
-        location: z.string().optional(),
-        attendees: z.array(z.string().email()).optional(),
-        eventTypeId: z.string()
-    }),
-    func: async ({ title, startTime, endTime, description, location, attendees, eventTypeId }) => {
-        logger.info("Tool: create_calendar_event", { title, eventTypeId });
+    description: `Tạo booking trên Cal.com, Nếu eventTypeId chưa có hãy gọi đến các tool như get_event_types, create_event_types để lấy
+        Field Required: start, attendee.name, attendee.timeZone, và eventTypeId (hoặc eventTypeSlug + username/teamSlug)
+    `,
+    schema: CreateBookingSchema,
+    func: async (input) => {
+        logger.info("Tool: create_calendar_event", input);
+
+        //remove file timestamp if exist
+        const cleanInput = Object.fromEntries(
+            Object.entries(input).filter(([k]) => k !== "timestamp")
+        );
 
         try {
             const res = await withRetry(() =>
                 axios.post(
                     `${config.cal.baseUrl}/bookings`,
+                    cleanInput,
                     {
-                        eventTypeId,
-                        start: startTime,
-                        end: endTime,
-                        responses: {
-                            name: "AI User",
-                            email: attendees?.[0] || "no-reply@example.com",
+                        headers: {
+                            ...getHeaders(),
+                            "cal-api-version": "2026-02-25"
                         },
-                        metadata: {
-                            title,
-                            description,
-                            location,
-                        },
-                    },
-                    { headers: getHeaders() }
+                    }
                 )
             );
 
-            return ok({
-                id: res.data.id,
-                title,
-                startTime,
-                endTime,
-                status: "created",
-            });
+            return ok(res.data.data);
         } catch (err) {
-            logger.error("create_calendar_event error", { error: err.message });
+            logger.error("create_calendar_event error", { error: err.response?.data?.error || err.message });
             return fail(err.message);
         }
     },
@@ -203,10 +250,10 @@ export const updateCalendarEventTool = new DynamicStructuredTool({
     name: "update_calendar_event",
     description: "Reschedule booking trên Cal.com",
     schema: z.object({
-        eventId: z.string(),
-        startTime: z.string().optional(),
-        endTime: z.string().optional(),
-    }),
+        eventId: z.string().describe("ID của booking cần reschedule"),
+        startTime: z.string().optional().describe("Thời gian bắt đầu mới (ISO 8601)"),
+        endTime: z.string().optional().describe("Thời gian kết thúc mới (ISO 8601)"),
+    }).strict(),
     func: async ({ eventId, startTime, endTime }) => {
         logger.info("Tool: update_calendar_event", { eventId });
 
@@ -235,8 +282,8 @@ export const deleteCalendarEventTool = new DynamicStructuredTool({
     name: "delete_calendar_event",
     description: "Hủy booking trên Cal.com",
     schema: z.object({
-        eventId: z.string(),
-    }),
+        eventId: z.string().describe("ID của booking cần hủy"),
+    }).strict(),
     func: async ({ eventId }) => {
         logger.info("Tool: delete_calendar_event", { eventId });
 
@@ -261,10 +308,10 @@ export const checkAvailabilityTool = new DynamicStructuredTool({
     name: "check_availability",
     description: "Kiểm tra slot trống từ Cal.com. Nếu eventTypeId chưa có hãy gọi đến các tool như get_event_types, create_event_types để lấy",
     schema: z.object({
-        timeMin: z.string(),
-        timeMax: z.string(),
-        eventTypeId: z.string(),
-    }),
+        timeMin: z.string().describe("Thời gian bắt đầu kiểm tra (ISO 8601)"),
+        timeMax: z.string().describe("Thời gian kết thúc kiểm tra (ISO 8601)"),
+        eventTypeId: z.string().describe("ID của event type cần kiểm tra slot"),
+    }).strict(),
     func: async ({ timeMin, timeMax, eventTypeId }) => {
         logger.info("Tool: check_availability", { timeMin, timeMax, eventTypeId });
 

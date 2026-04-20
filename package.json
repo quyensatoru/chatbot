@@ -12,10 +12,10 @@
   "main": "backend/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:server": "nodemon --ext js,json backend/server.js",
-    "dev:rag": "cross-env PYTHONPATH=./rag .venv\\Scripts\\python rag/main.py",
+    "dev:server": "nodemon backend/server.js",
+    "dev:rag": "node -e \"const {spawn}=require('child_process');const py=process.platform==='win32'?'.venv/Scripts/python':'.venv/bin/python';spawn(py,['rag/main.py'],{stdio:'inherit',env:{...process.env,PYTHONPATH:'./rag'}}).on('exit',c=>process.exit(c??0))\"",
     "dev:ui": "npm run dev --prefix ui",
-    "dev": "concurrently -n \"server,ui,rag\" --no-kill-others --prefix-colors \"blue,green,magenta\" \"npm run dev:server\" \"npm run dev:ui\" \"npm run dev:rag\""
+    "dev": "concurrently -n \"server,ui,rag\" --kill-others-on-fail --prefix-colors \"blue,green,magenta\" \"npm run dev:server\" \"npm run dev:ui\" \"npm run dev:rag\""
   },
   "dependencies": {
     "@chroma-core/default-embed": "^0.1.9",
@@ -33,6 +33,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "googleapis": "^171.4.0",
+    "imapflow": "^1.3.2",
     "jsonwebtoken": "^9.0.3",
     "langchain": "^1.2.37",
     "mammoth": "^1.12.0",
@@ -40,7 +41,9 @@
     "mongodb": "^7.1.1",
     "mongoose": "^9.3.3",
     "multer": "^2.1.1",
+    "node-cron": "^4.2.1",
     "node-telegram-bot-api": "^0.67.0",
+    "nodemailer": "^8.0.5",
     "openai": "^6.33.0",
     "pdf-parse": "^1.1.4",
     "qrcode": "^1.5.4",

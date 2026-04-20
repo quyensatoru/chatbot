@@ -1,5 +1,6 @@
-import * as z from "zod";
-import { Document, tool } from "langchain";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from "zod";
+import { Document } from "@langchain/core/documents";
 import { tavily } from "@tavily/core";
 import dotenv from "dotenv";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
@@ -8,114 +9,45 @@ import { openChatModel } from "../config/llm.config.js";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { SYSTEM_SUMMARY_PROMPT } from "../helper/prompt.js";
 import { ChromaDB } from "../config/chorma.config.js";
+import { logger, withRetry, ok, fail } from "../config/tool.config.js";
 
 dotenv.config();
 
 const separators = [
-    "\n## ",
-    "\n### ",
-    "\n#### ",
-    "\n###",
-    "\n##",
-    "\n#",
+    "\n## ", "\n### ", "\n#### ", "\n###", "\n##", "\n#",
     "```",
     "\n1)", "\n2)", "\n3)", "\n4)",
-    "\n\n",
-    "\n",
+    "\n\n", "\n",
     ". ", "? ", "! ",
-    "; ", ": ",
-    ", ",
-    " ",
-    "",
+    "; ", ": ", ", ", " ", "",
 ];
-
-const WebSearchInput = z.object({
-    query: z.string().min(1).describe("Search query string to perform a web search."),
-});
 
 const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
 
-const web_search = tool(
-    async ({ query }) => {
-        try {
-            const db = await ChromaDB();
-            const results = await performWebSearch(query);
-
-            const documents = results.map((result) => new Document({
-                pageContent: result.content,
-                metadata: {
-                    source: result.url,
-                },
-            }));
-
-            const splitter = new RecursiveCharacterTextSplitter({
-                chunkSize: 500,
-                chunkOverlap: 120,
-                separators,
-            });
-
-            const chunks = await splitter.splitDocuments(documents);
-            const texts = chunks.map((chunk) => chunk.pageContent);
-            const metadatas = chunks.map((chunk) => ({
-                source: chunk.metadata.source,
-                loc_page_from: chunk.metadata.source?.lines?.from,
-                loc_page_to: chunk.metadata.source?.lines?.to,
-            }));
-            const ids = chunks.map(() => uuidV4());
-
-            await db.searchCollection.add({
-                ids,
-                documents: texts,
-                metadatas,
-            });
-
-            const context = await db.searchCollection.query({
-                queryTexts: [query],
-                topK: 20,
-                includeMetadata: true,
-                nResults: 10,
-                include: ["documents", "metadatas", "distances"],
-            });
-
-            const docs = context.documents[0].join("\n");
-            const template = ChatPromptTemplate.fromMessages([
-                ["system", SYSTEM_SUMMARY_PROMPT],
-                [
-                    "user",
-                    `Based on the following documents:
-{context}
-Answer this question: {question}
-Provide a clear, accurate response.
-`,
-                ],
-            ]);
-
-            const chain = template.pipe(openChatModel);
-            const message = await chain.invoke({
-                context: docs,
-                question: query,
-            });
-
-            await db.searchCollection.delete({ ids });
-            return message.content;
-        } catch (error) {
-            console.error(error);
-            return "Could not search web";
-        }
-    },
-    {
-        name: "web_search",
-        description: "Performs web searches. Call this tool when you need to retrieve information from the web. Returns a list of search results with titles and URLs.",
-        schema: WebSearchInput,
-    }
-);
-
 async function performWebSearch(query) {
-    const result = await client.search(query, {
-        maxResults: 10,
-        maxTokens: 1000,
-    });
-    return result.results;
+    const result = await withRetry(() =>
+        client.search(query, { maxResults: 5, maxTokens: 1000 })
+    );
+    return result.results.map(r => r.content).join("\n\n");
 }
 
-export const searchTools = [web_search]
+export const webSearchTool = new DynamicStructuredTool({
+    name: "web_search",
+    description:
+        "Tìm kiếm thông tin trên internet bằng Tavily. Dùng khi cần thông tin thời sự, sự kiện mới, hoặc câu hỏi không có trong tài liệu nội bộ. Trả về câu trả lời đã tổng hợp từ kết quả web.",
+    schema: z.object({
+        query: z.string().min(1).describe("Câu hỏi hoặc từ khóa cần tìm kiếm trên web"),
+    }).strict(),
+    func: async ({ query }) => {
+        logger.info("Tool: web_search", { query });
+        try {
+            const results = await performWebSearch(query);
+            return ok({ result: results });
+        } catch (err) {
+            logger.error("web_search error", { error: err.message, query });
+            return fail(err.message);
+        }
+    },
+});
+
+export const searchTools = [webSearchTool];

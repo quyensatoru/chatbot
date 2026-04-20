@@ -31,6 +31,8 @@ function Hash(str) {
 const channelAllows = [
     "xbbhhag6q3fw78yfupu3wmtapw",
     "ed4mhznxpb8d8qeey8icgjf7pe",
+    "59r7pbiqribj9pmi81n5t8sw1w",
+    "9o8ce8k7yinh5bm5uzeb97erbo"
 ]
 
 const initBotMattermost = () => {
@@ -96,7 +98,7 @@ const initBotMattermost = () => {
                     return
                 }
 
-                const matches = message.match(/@\w+/g);
+                const matches = message.match(/(?<!\S)@\w+\b(?!\.\w)/g);
 
                 let chatHistory = []
                 let threadId = null;
@@ -139,7 +141,7 @@ const initBotMattermost = () => {
                     threadId = uuidV4();
                 }
 
-                const content = message.replace(/@\w+/g, "")
+                const content = message.replace(/(?<!\S)@\w+\b(?!\.\w)/g, "")
 
                 console.log("chatHistory: ", chatHistory)
 

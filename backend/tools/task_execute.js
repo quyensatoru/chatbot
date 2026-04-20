@@ -52,7 +52,7 @@ export const createTaskTool = new DynamicStructuredTool({
         dueDate: z.string().optional().describe("Hạn chót (ISO 8601 date, ví dụ: 2024-12-31)"),
         tags: z.array(z.string()).optional().describe("Danh sách tags"),
         notes: z.string().optional().describe("Ghi chú thêm"),
-    }),
+    }).strict(),
     func: async ({ title, status, priority, dueDate, tags, notes }) => {
         logger.info("Tool: create_task", { title });
         try {
@@ -91,7 +91,7 @@ export const listTasksTool = new DynamicStructuredTool({
         priority: PrioritySchema.optional().describe("Lọc theo độ ưu tiên"),
         tag: z.string().optional().describe("Lọc theo tag"),
         maxResults: z.number().int().min(1).max(50).default(10),
-    }),
+    }).strict(),
     func: async ({ status, priority, tag, maxResults }) => {
         logger.info("Tool: list_tasks", { status, priority });
         try {
@@ -142,7 +142,7 @@ export const updateTaskTool = new DynamicStructuredTool({
         priority: PrioritySchema.optional().describe("Độ ưu tiên mới"),
         dueDate: z.string().optional().describe("Deadline mới (ISO 8601)"),
         notes: z.string().optional().describe("Ghi chú mới"),
-    }),
+    }).strict(),
     func: async ({ taskId, title, status, priority, dueDate, notes }) => {
         logger.info("Tool: update_task", { taskId });
         try {
@@ -171,7 +171,7 @@ export const deleteTaskTool = new DynamicStructuredTool({
     description: "Xóa (archive) một task trong Notion.",
     schema: z.object({
         taskId: z.string().describe("ID của task cần xóa"),
-    }),
+    }).strict(),
     func: async ({ taskId }) => {
         logger.info("Tool: delete_task", { taskId });
         try {
@@ -196,7 +196,7 @@ export const createNoteTool = new DynamicStructuredTool({
         title: z.string().describe("Tiêu đề ghi chú"),
         content: z.string().describe("Nội dung ghi chú"),
         tags: z.array(z.string()).optional().describe("Tags phân loại"),
-    }),
+    }).strict(),
     func: async ({ title, content, tags }) => {
         logger.info("Tool: create_note", { title });
         try {
@@ -228,7 +228,7 @@ export const searchNotesTool = new DynamicStructuredTool({
         keyword: z.string().describe("Từ khóa tìm kiếm trong tiêu đề hoặc nội dung"),
         tag: z.string().optional().describe("Lọc theo tag"),
         maxResults: z.number().int().default(5),
-    }),
+    }).strict(),
     func: async ({ keyword, tag, maxResults }) => {
         logger.info("Tool: search_notes", { keyword });
         try {

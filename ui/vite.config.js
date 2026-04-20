@@ -7,5 +7,6 @@ export default defineConfig({
   server: {
     port: 5173,
     cors: true,
+    allowedHosts: ["dev-quyen-chatbot.dev-bsscommerce.com"]
   },
 })

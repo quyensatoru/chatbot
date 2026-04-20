@@ -1,17 +1,35 @@
-import * as z from "zod";
-import { tool } from "langchain";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from "zod";
+import { config, logger, ok, fail } from "../config/tool.config.js";
 
-const CurrentTimeInput = z.object({})
-
-export const current_time = tool(
-    async () => {
-        return { currentTime: new Date().toISOString() };
+export const currentTimeTool = new DynamicStructuredTool({
+    name: "current_time",
+    description:
+        "Lấy ngày giờ hiện tại theo múi giờ chỉ định. Dùng khi cần biết thời gian hiện tại, ngày trong tuần, hoặc chuyển đổi múi giờ.",
+    schema: z.object({
+        timezone: z.string().optional().describe(
+            "Múi giờ IANA (ví dụ: 'Asia/Ho_Chi_Minh', 'America/New_York', 'UTC'). Mặc định: Asia/Ho_Chi_Minh"
+        ),
+    }).strict(),
+    func: async ({ timezone }) => {
+        const tz = timezone || config.defaults.timezone;
+        logger.info("Tool: current_time", { tz });
+        try {
+            const now = new Date();
+            return ok({
+                iso: now.toISOString(),
+                timestamp: now.getTime(),
+                timezone: tz,
+                formatted: now.toLocaleString("vi-VN", { timeZone: tz, dateStyle: "full", timeStyle: "long" }),
+                date: now.toLocaleDateString("vi-VN", { timeZone: tz, dateStyle: "short" }),
+                time: now.toLocaleTimeString("vi-VN", { timeZone: tz, timeStyle: "medium" }),
+                dayOfWeek: now.toLocaleDateString("vi-VN", { timeZone: tz, weekday: "long" }),
+            });
+        } catch (err) {
+            logger.error("current_time error", { error: err.message });
+            return fail(err.message);
+        }
     },
-    {
-        name: "current_time",
-        description: "Provides the current date and time in ISO format. Call this tool when you need the current system time.",
-        schema: CurrentTimeInput,
-    }
-);
+});
 
-export const currentTool = [current_time]
+export const currentTool = [currentTimeTool];

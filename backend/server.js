@@ -5,10 +5,17 @@ import routers from './routers/index.js';
 import errorMiddleware from './middleware/error.middleware.js';
 import connectToMongoDB from './config/mongo.config.js';
 import initBotMattermost from './config/mattermost.js';
+import AgentService from './services/agent.service.js';
+import { initAutomations } from './tools/automation.js';
+import { initScheduledMessages } from './tools/message_chat.js';
 config();
 
 await connectToMongoDB();
 await initBotMattermost();
+
+// Recover persistent scheduled messages and start saved automation jobs
+initScheduledMessages();
+initAutomations((messages) => AgentService.chat(messages));
 
 const app = express();
 app.use(cors());

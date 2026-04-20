@@ -1,44 +1,41 @@
-import { tool } from "langchain";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from "zod";
 import RagService from "../services/rag.service.js";
-import * as z from "zod";
+import { logger, ok, fail } from "../config/tool.config.js";
 
-const retrieve = async ({ query, top_k }) => {
-    const response = await RagService.query({
-        query,
-        topK: top_k,
-    });
-
-    return {
-        answer: response.answer,
-        sources: response.sources || [],
-        strategies: response.selected_strategies || [],
-        retrievals: response.retrievals || {},
-    };
-};
-
-const document_rag = tool(retrieve, {
+export const documentRagTool = new DynamicStructuredTool({
     name: "document_rag",
-    description: `Retrieve relevant information from the document knowledge base (RAG system).
+    description: `Tìm kiếm và trả lời từ cơ sở tri thức tài liệu (RAG system).
 
-This tool MUST be used whenever the user asks about:
-- Personal information
-- Data contained in documents
-- Any factual detail that could exist in stored files
+PHẢI dùng tool này khi người dùng hỏi về:
+- Thông tin cá nhân, dữ liệu trong tài liệu
+- Bất kỳ sự kiện nào có thể có trong file lưu trữ
 
-The tool performs semantic search over documents and returns the most relevant text chunks.
-
-IMPORTANT:
-- This is the primary source of truth for all document-related questions
-- Do NOT answer from memory if the question is about documents
-- Always call this tool first before answering document-related queries`,
+QUAN TRỌNG:
+- Đây là nguồn sự thật chính cho câu hỏi về tài liệu
+- KHÔNG tự trả lời từ bộ nhớ nếu câu hỏi liên quan đến tài liệu
+- Luôn gọi tool này trước khi trả lời câu hỏi về tài liệu`,
     schema: z.object({
-        query: z.string().describe("User query to search relevant documents"),
-        top_k: z
-            .number()
-            .optional()
-            .default(5)
-            .describe("Number of chunks to return"),
-    }),
-})
+        query: z.string().min(1).describe("Câu hỏi hoặc từ khóa tìm kiếm trong tài liệu"),
+        top_k: z.number().int().min(1).max(20).optional().default(5).describe(
+            "Số lượng đoạn văn bản liên quan trả về (mặc định: 5)"
+        ),
+    }).strict(),
+    func: async ({ query, top_k }) => {
+        logger.info("Tool: document_rag", { query, top_k });
+        try {
+            const response = await RagService.query({ query, topK: top_k });
+            return ok({
+                answer: response.answer,
+                sources: response.sources || [],
+                strategies: response.selected_strategies || [],
+                retrievals: response.retrievals || {},
+            });
+        } catch (err) {
+            logger.error("document_rag error", { error: err.message });
+            return fail(err.message);
+        }
+    },
+});
 
-export const documentTools = [document_rag]
+export const documentTools = [documentRagTool];

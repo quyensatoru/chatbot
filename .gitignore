@@ -5,5 +5,9 @@ package-look.json
 uploads
 rag/data
 .venv
-rag/__pycache__
-rag/**/*.pyc
+**/__pycache__
+**/*.pyc
+**/*.pyo
+logs
+workspace
+data

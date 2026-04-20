@@ -52,7 +52,7 @@ export const addExpenseTool = new DynamicStructuredTool({
             .optional()
             .describe("Ngày chi tiêu (YYYY-MM-DD). Mặc định: hôm nay"),
         notes: z.string().optional().describe("Ghi chú thêm"),
-    }),
+    }).strict(),
     func: async ({ amount, currency, category, description, date, notes }) => {
         logger.info("Tool: add_expense", { amount, category });
         try {
@@ -89,7 +89,7 @@ export const checkExpenseTool = new DynamicStructuredTool({
             .describe("Ngày kết thúc (YYYY-MM-DD). Mặc định: hôm nay"),
         category: CategorySchema.optional().describe("Lọc theo danh mục (để trống để xem tất cả)"),
         currency: z.string().default("VND").describe("Đơn vị tiền tệ cần tổng hợp"),
-    }),
+    }).strict(),
     func: async ({ startDate, endDate, category, currency }) => {
         logger.info("Tool: check_expense", { startDate, endDate });
         try {

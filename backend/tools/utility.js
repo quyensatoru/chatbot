@@ -15,34 +15,32 @@ export const translateTextTool = new DynamicStructuredTool({
         targetLanguage: z
             .string()
             .default("vi")
-            .describe("Ngôn ngữ đích (vi, en, ja, ko, zh, fr, de...)"),
+            .describe("Ngôn ngữ đích theo mã ISO 639-1: vi, en, ja, ko, zh, fr, de, es..."),
         sourceLanguage: z
             .string()
             .optional()
-            .describe("Ngôn ngữ nguồn (để trống để tự nhận diện)"),
-    }),
+            .describe("Ngôn ngữ nguồn theo mã ISO 639-1 (để trống để tự nhận diện)"),
+    }).strict(),
     func: async ({ text, targetLanguage, sourceLanguage }) => {
         logger.info("Tool: translate_text", { targetLanguage, textLength: text.length });
         try {
+            const langpair = `${sourceLanguage || "autodetect"}|${targetLanguage}`;
             const res = await withRetry(() =>
-                axios.get("https://translation.googleapis.com/language/translate/v2", {
-                    params: {
-                        q: text,
-                        target: targetLanguage,
-                        source: sourceLanguage,
-                        key: config.maps.apiKey, // reuse Google API key
-                        format: "text",
-                    },
+                axios.get("https://api.mymemory.translated.net/get", {
+                    params: { q: text, langpair },
                     timeout: config.defaults.toolTimeout,
                 })
             );
 
-            const translation = res.data.data?.translations?.[0];
+            if (res.data.responseStatus !== 200) {
+                return fail(res.data.responseDetails || "Dịch thất bại");
+            }
+
             return ok({
                 originalText: text,
-                translatedText: translation?.translatedText,
-                detectedSourceLanguage: translation?.detectedSourceLanguage,
+                translatedText: res.data.responseData.translatedText,
                 targetLanguage,
+                sourceLanguage: sourceLanguage || "auto",
             });
         } catch (err) {
             logger.error("translate_text error", { error: err.message });
@@ -61,7 +59,7 @@ export const calculateTool = new DynamicStructuredTool({
             .describe(
                 "Biểu thức toán học cần tính. Ví dụ: '(2 + 3) * 4', 'Math.sqrt(16)', 'Math.PI * 5 ** 2'"
             ),
-    }),
+    }).strict(),
     func: async ({ expression }) => {
         logger.info("Tool: calculate", { expression });
         try {
@@ -97,7 +95,7 @@ export const convertTimezoneTool = new DynamicStructuredTool({
         toTimezone: z
             .string()
             .describe("Múi giờ đích (ví dụ: Europe/London, Asia/Tokyo)"),
-    }),
+    }).strict(),
     func: async ({ datetime, fromTimezone, toTimezone }) => {
         logger.info("Tool: convert_timezone", { fromTimezone, toTimezone });
         try {
@@ -147,7 +145,7 @@ export const getCurrentTimeTool = new DynamicStructuredTool({
             .enum(["full", "date", "time", "iso"])
             .default("full")
             .describe("Định dạng trả về"),
-    }),
+    }).strict(),
     func: async ({ timezone, format }) => {
         const tz = timezone || config.defaults.timezone;
         logger.info("Tool: get_current_time", { tz });
@@ -193,7 +191,7 @@ export const generateQrCodeTool = new DynamicStructuredTool({
             .default("./qr_code.png")
             .describe("Đường dẫn lưu file QR (PNG)"),
         size: z.number().int().min(100).max(1000).default(300).describe("Kích thước ảnh (px)"),
-    }),
+    }).strict(),
     func: async ({ content, outputPath, size }) => {
         logger.info("Tool: generate_qr_code", { content: content.slice(0, 50) });
         try {
@@ -217,7 +215,7 @@ export const shortenUrlTool = new DynamicStructuredTool({
     schema: z.object({
         url: z.string().url().describe("URL đầy đủ cần rút gọn"),
         alias: z.string().optional().describe("Tên tùy chỉnh cho URL rút gọn (nếu có)"),
-    }),
+    }).strict(),
     func: async ({ url, alias }) => {
         logger.info("Tool: shorten_url", { url });
         try {
@@ -246,20 +244,21 @@ export const getExchangeRateTool = new DynamicStructuredTool({
         targetCurrencies: z
             .array(z.string().length(3))
             .max(10)
-            .describe("Danh sách đồng tiền đích cần quy đổi"),
+            .describe("Danh sách đồng tiền đích cần quy đổi (ví dụ: ['VND', 'EUR', 'JPY'])"),
         amount: z.number().positive().default(1).describe("Số tiền cần quy đổi"),
-    }),
+    }).strict(),
     func: async ({ baseCurrency, targetCurrencies, amount }) => {
         logger.info("Tool: get_exchange_rate", { baseCurrency });
         try {
+            const base = baseCurrency.toUpperCase();
             const res = await withRetry(() =>
                 axios.get(
-                    `https://v6.exchangerate-api.com/v6/${config.exchangeRate.apiKey}/latest/${baseCurrency.toUpperCase()}`,
+                    `https://api.exchangerate-api.com/v4/latest/${base}`,
                     { timeout: config.defaults.toolTimeout }
                 )
             );
 
-            const rates = res.data.conversion_rates;
+            const rates = res.data.rates;
             const result = {};
 
             for (const currency of targetCurrencies) {
@@ -273,9 +272,9 @@ export const getExchangeRateTool = new DynamicStructuredTool({
             }
 
             return ok({
-                base: baseCurrency.toUpperCase(),
+                base,
                 amount,
-                lastUpdated: res.data.time_last_update_utc,
+                date: res.data.date,
                 conversions: result,
             });
         } catch (err) {

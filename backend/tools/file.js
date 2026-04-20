@@ -1,69 +1,48 @@
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
-import { google } from "googleapis";
 import fs from "fs";
 import path from "path";
-import { config, logger, withRetry, ok, fail } from "../config/tool.config.js";
+import { config, logger, ok, fail } from "../config/tool.config.js";
 
-function getAuth() {
-    const auth = new google.auth.OAuth2(
-        config.google.clientId,
-        config.google.clientSecret,
-        config.google.redirectUri
-    );
-    auth.setCredentials({ refresh_token: config.google.refreshToken });
-    return auth;
-}
-
-function getDrive() {
-    return google.drive({ version: "v3", auth: getAuth() });
-}
-
-function getDocs() {
-    return google.docs({ version: "v1", auth: getAuth() });
+function safePath(filePath) {
+    const base = path.resolve(config.file.baseDir);
+    const resolved = path.resolve(base, filePath);
+    if (!resolved.startsWith(base + path.sep) && resolved !== base) {
+        throw new Error("Path traversal không được phép");
+    }
+    return resolved;
 }
 
 // ─── Tools ────────────────────────────────────────────────────────────────────
 
 export const listFilesTool = new DynamicStructuredTool({
     name: "list_files",
-    description:
-        "Liệt kê file trong Google Drive. Dùng khi người dùng muốn xem danh sách tài liệu của mình.",
+    description: "Liệt kê file và thư mục trong workspace cục bộ.",
     schema: z.object({
-        folderId: z
-            .string()
-            .optional()
-            .describe("ID thư mục (để trống để xem root)"),
-        query: z.string().optional().describe("Từ khóa tìm kiếm tên file"),
-        mimeType: z
-            .string()
-            .optional()
-            .describe(
-                "Loại file: application/vnd.google-apps.document, application/pdf..."
-            ),
-        maxResults: z.number().int().min(1).max(50).default(10),
-    }),
-    func: async ({ folderId, query, mimeType, maxResults }) => {
-        logger.info("Tool: list_files", { folderId, query });
+        dirPath: z.string().default(".").describe("Đường dẫn thư mục trong workspace (mặc định: gốc)"),
+        showHidden: z.boolean().default(false).describe("Hiển thị file ẩn bắt đầu bằng dấu chấm"),
+    }).strict(),
+    func: async ({ dirPath, showHidden }) => {
+        logger.info("Tool: list_files", { dirPath });
         try {
-            const drive = getDrive();
-            const qParts = [];
+            const fullPath = safePath(dirPath);
+            if (!fs.existsSync(fullPath)) return fail(`Thư mục không tồn tại: ${dirPath}`);
+            if (!fs.statSync(fullPath).isDirectory()) return fail(`Không phải thư mục: ${dirPath}`);
 
-            if (folderId) qParts.push(`'${folderId}' in parents`);
-            if (query) qParts.push(`name contains '${query}'`);
-            if (mimeType) qParts.push(`mimeType = '${mimeType}'`);
-            qParts.push("trashed = false");
+            const entries = fs.readdirSync(fullPath, { withFileTypes: true });
+            const files = entries
+                .filter((e) => showHidden || !e.name.startsWith("."))
+                .map((e) => {
+                    const stat = fs.statSync(path.join(fullPath, e.name));
+                    return {
+                        name: e.name,
+                        type: e.isDirectory() ? "directory" : "file",
+                        size: e.isFile() ? stat.size : null,
+                        modifiedAt: stat.mtime.toISOString(),
+                    };
+                });
 
-            const res = await withRetry(() =>
-                drive.files.list({
-                    q: qParts.join(" and "),
-                    pageSize: maxResults,
-                    fields: "files(id, name, mimeType, size, modifiedTime, webViewLink, parents)",
-                    orderBy: "modifiedTime desc",
-                })
-            );
-
-            return ok(res.data.files || []);
+            return ok({ path: dirPath, count: files.length, files });
         } catch (err) {
             logger.error("list_files error", { error: err.message });
             return fail(err.message);
@@ -71,191 +50,173 @@ export const listFilesTool = new DynamicStructuredTool({
     },
 });
 
-export const searchDriveTool = new DynamicStructuredTool({
-    name: "search_drive",
-    description: "Tìm kiếm file trong Google Drive theo tên hoặc nội dung.",
+export const searchFilesTool = new DynamicStructuredTool({
+    name: "search_files",
+    description: "Tìm kiếm file theo tên hoặc nội dung trong workspace.",
     schema: z.object({
-        keyword: z.string().describe("Từ khóa tìm kiếm"),
-        fileType: z
-            .enum(["document", "spreadsheet", "presentation", "pdf", "any"])
-            .default("any"),
-        maxResults: z.number().int().default(5),
-    }),
-    func: async ({ keyword, fileType, maxResults }) => {
-        logger.info("Tool: search_drive", { keyword });
+        keyword: z.string().describe("Từ khóa cần tìm"),
+        searchIn: z.enum(["name", "content", "both"]).default("both").describe("Tìm trong tên file, nội dung, hoặc cả hai"),
+        dirPath: z.string().default(".").describe("Thư mục gốc để tìm kiếm"),
+        maxResults: z.number().int().min(1).max(50).default(10),
+    }).strict(),
+    func: async ({ keyword, searchIn, dirPath, maxResults }) => {
+        logger.info("Tool: search_files", { keyword, searchIn });
         try {
-            const drive = getDrive();
-            const mimeMap = {
-                document: "application/vnd.google-apps.document",
-                spreadsheet: "application/vnd.google-apps.spreadsheet",
-                presentation: "application/vnd.google-apps.presentation",
-                pdf: "application/pdf",
-            };
+            const fullPath = safePath(dirPath);
+            if (!fs.existsSync(fullPath)) return fail(`Thư mục không tồn tại: ${dirPath}`);
 
-            const qParts = [`fullText contains '${keyword}'`, "trashed = false"];
-            if (fileType !== "any" && mimeMap[fileType]) {
-                qParts.push(`mimeType = '${mimeMap[fileType]}'`);
+            const results = [];
+            const lowerKw = keyword.toLowerCase();
+
+            function searchDir(dir) {
+                if (results.length >= maxResults) return;
+                let entries;
+                try {
+                    entries = fs.readdirSync(dir, { withFileTypes: true });
+                } catch {
+                    return;
+                }
+                for (const entry of entries) {
+                    if (results.length >= maxResults) break;
+                    const entryPath = path.join(dir, entry.name);
+                    if (entry.isDirectory()) {
+                        searchDir(entryPath);
+                    } else {
+                        const nameMatch =
+                            (searchIn === "name" || searchIn === "both") &&
+                            entry.name.toLowerCase().includes(lowerKw);
+                        let contentMatch = false;
+                        if (!nameMatch && (searchIn === "content" || searchIn === "both")) {
+                            try {
+                                const content = fs.readFileSync(entryPath, "utf-8");
+                                contentMatch = content.toLowerCase().includes(lowerKw);
+                            } catch { /* skip binary files */ }
+                        }
+                        if (nameMatch || contentMatch) {
+                            const stat = fs.statSync(entryPath);
+                            results.push({
+                                path: path.relative(fullPath, entryPath),
+                                name: entry.name,
+                                matchType: nameMatch ? "name" : "content",
+                                size: stat.size,
+                                modifiedAt: stat.mtime.toISOString(),
+                            });
+                        }
+                    }
+                }
             }
 
-            const res = await withRetry(() =>
-                drive.files.list({
-                    q: qParts.join(" and "),
-                    pageSize: maxResults,
-                    fields: "files(id, name, mimeType, modifiedTime, webViewLink)",
-                })
-            );
-
-            return ok(res.data.files || []);
+            searchDir(fullPath);
+            return ok({ keyword, found: results.length, files: results });
         } catch (err) {
-            logger.error("search_drive error", { error: err.message });
+            logger.error("search_files error", { error: err.message });
             return fail(err.message);
         }
     },
 });
 
-export const createDocumentTool = new DynamicStructuredTool({
-    name: "create_document",
-    description:
-        "Tạo tài liệu Google Docs mới với nội dung cho trước.",
+export const readFileTool = new DynamicStructuredTool({
+    name: "read_file",
+    description: "Đọc nội dung file văn bản trong workspace (txt, md, json, js, py, csv...).",
     schema: z.object({
-        title: z.string().describe("Tiêu đề tài liệu"),
-        content: z.string().describe("Nội dung ban đầu của tài liệu"),
-        folderId: z.string().optional().describe("ID thư mục lưu tài liệu"),
-    }),
-    func: async ({ title, content, folderId }) => {
-        logger.info("Tool: create_document", { title });
+        filePath: z.string().describe("Đường dẫn file trong workspace"),
+        maxChars: z.number().int().min(100).max(50000).default(5000).describe("Số ký tự tối đa trả về"),
+    }).strict(),
+    func: async ({ filePath, maxChars }) => {
+        logger.info("Tool: read_file", { filePath });
         try {
-            const docs = getDocs();
-            const drive = getDrive();
+            const fullPath = safePath(filePath);
+            if (!fs.existsSync(fullPath)) return fail(`File không tồn tại: ${filePath}`);
+            const stat = fs.statSync(fullPath);
+            if (stat.isDirectory()) return fail(`Đây là thư mục, không phải file: ${filePath}`);
 
-            // Create doc
-            const docRes = await withRetry(() =>
-                docs.documents.create({ resource: { title } })
-            );
-            const docId = docRes.data.documentId;
-
-            // Insert content
-            if (content) {
-                await withRetry(() =>
-                    docs.documents.batchUpdate({
-                        documentId: docId,
-                        resource: {
-                            requests: [
-                                {
-                                    insertText: { location: { index: 1 }, text: content },
-                                },
-                            ],
-                        },
-                    })
-                );
-            }
-
-            // Move to folder if specified
-            if (folderId) {
-                const fileRes = await drive.files.get({
-                    fileId: docId,
-                    fields: "parents",
-                });
-                const prevParents = fileRes.data.parents.join(",");
-                await withRetry(() =>
-                    drive.files.update({
-                        fileId: docId,
-                        addParents: folderId,
-                        removeParents: prevParents,
-                        fields: "id, parents",
-                    })
-                );
-            }
-
+            const content = fs.readFileSync(fullPath, "utf-8");
             return ok({
-                docId,
-                title,
-                url: `https://docs.google.com/document/d/${docId}/edit`,
+                path: filePath,
+                size: stat.size,
+                modifiedAt: stat.mtime.toISOString(),
+                content: content.slice(0, maxChars),
+                truncated: content.length > maxChars,
             });
         } catch (err) {
-            logger.error("create_document error", { error: err.message });
+            logger.error("read_file error", { error: err.message });
             return fail(err.message);
         }
     },
 });
 
-export const uploadFileTool = new DynamicStructuredTool({
-    name: "upload_file",
-    description: "Tải file từ máy tính lên Google Drive.",
+export const createFileTool = new DynamicStructuredTool({
+    name: "create_file",
+    description: "Tạo file mới trong workspace với nội dung cho trước. Tự tạo thư mục nếu chưa có.",
     schema: z.object({
-        localPath: z.string().describe("Đường dẫn file cục bộ cần upload"),
-        driveFolderId: z.string().optional().describe("ID thư mục trên Drive để upload vào"),
-        fileName: z.string().optional().describe("Tên file trên Drive (mặc định: tên file gốc)"),
-    }),
-    func: async ({ localPath, driveFolderId, fileName }) => {
-        logger.info("Tool: upload_file", { localPath });
+        filePath: z.string().describe("Đường dẫn file cần tạo"),
+        content: z.string().describe("Nội dung file"),
+        overwrite: z.boolean().default(false).describe("Cho phép ghi đè nếu file đã tồn tại"),
+    }).strict(),
+    func: async ({ filePath, content, overwrite }) => {
+        logger.info("Tool: create_file", { filePath });
         try {
-            if (!fs.existsSync(localPath)) {
-                return fail(`File không tồn tại: ${localPath}`);
+            const fullPath = safePath(filePath);
+            if (!overwrite && fs.existsSync(fullPath)) {
+                return fail(`File đã tồn tại: ${filePath}. Dùng overwrite: true để ghi đè.`);
             }
-
-            const drive = getDrive();
-            const name = fileName || path.basename(localPath);
-            const fileSize = fs.statSync(localPath).size;
-
-            const metadata = {
-                name,
-                parents: driveFolderId ? [driveFolderId] : undefined,
-            };
-
-            const media = {
-                body: fs.createReadStream(localPath),
-            };
-
-            const res = await withRetry(() =>
-                drive.files.create({
-                    resource: metadata,
-                    media,
-                    fields: "id, name, webViewLink, size",
-                })
-            );
-
-            return ok({
-                fileId: res.data.id,
-                name: res.data.name,
-                url: res.data.webViewLink,
-                size: fileSize,
-            });
+            fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+            fs.writeFileSync(fullPath, content, "utf-8");
+            return ok({ created: true, path: filePath, size: Buffer.byteLength(content, "utf-8") });
         } catch (err) {
-            logger.error("upload_file error", { error: err.message });
+            logger.error("create_file error", { error: err.message });
             return fail(err.message);
         }
     },
 });
 
-export const downloadFileTool = new DynamicStructuredTool({
-    name: "download_file",
-    description: "Tải file từ Google Drive về máy tính.",
+export const writeFileTool = new DynamicStructuredTool({
+    name: "write_file",
+    description: "Ghi hoặc nối thêm nội dung vào file đã có trong workspace.",
     schema: z.object({
-        fileId: z.string().describe("ID của file trên Google Drive"),
-        localPath: z.string().describe("Đường dẫn lưu file (ví dụ: ./downloads/file.pdf)"),
-    }),
-    func: async ({ fileId, localPath }) => {
-        logger.info("Tool: download_file", { fileId, localPath });
+        filePath: z.string().describe("Đường dẫn file cần ghi"),
+        content: z.string().describe("Nội dung cần ghi"),
+        mode: z.enum(["overwrite", "append"]).default("overwrite").describe("overwrite=ghi đè toàn bộ, append=nối thêm vào cuối"),
+    }).strict(),
+    func: async ({ filePath, content, mode }) => {
+        logger.info("Tool: write_file", { filePath, mode });
         try {
-            const drive = getDrive();
-            fs.mkdirSync(path.dirname(localPath), { recursive: true });
-
-            const res = await withRetry(() =>
-                drive.files.get({ fileId, alt: "media" }, { responseType: "stream" })
-            );
-
-            await new Promise((resolve, reject) => {
-                const dest = fs.createWriteStream(localPath);
-                res.data.pipe(dest);
-                dest.on("finish", resolve);
-                dest.on("error", reject);
-            });
-
-            const stats = fs.statSync(localPath);
-            return ok({ downloaded: true, localPath, size: stats.size });
+            const fullPath = safePath(filePath);
+            if (!fs.existsSync(fullPath)) return fail(`File không tồn tại: ${filePath}`);
+            if (mode === "append") {
+                fs.appendFileSync(fullPath, content, "utf-8");
+            } else {
+                fs.writeFileSync(fullPath, content, "utf-8");
+            }
+            const stat = fs.statSync(fullPath);
+            return ok({ written: true, path: filePath, size: stat.size, mode });
         } catch (err) {
-            logger.error("download_file error", { error: err.message });
+            logger.error("write_file error", { error: err.message });
+            return fail(err.message);
+        }
+    },
+});
+
+export const deleteFileTool = new DynamicStructuredTool({
+    name: "delete_file",
+    description: "Xóa file hoặc thư mục rỗng khỏi workspace.",
+    schema: z.object({
+        filePath: z.string().describe("Đường dẫn file hoặc thư mục cần xóa"),
+    }).strict(),
+    func: async ({ filePath }) => {
+        logger.info("Tool: delete_file", { filePath });
+        try {
+            const fullPath = safePath(filePath);
+            if (!fs.existsSync(fullPath)) return fail(`Không tìm thấy: ${filePath}`);
+            const stat = fs.statSync(fullPath);
+            if (stat.isDirectory()) {
+                fs.rmdirSync(fullPath);
+            } else {
+                fs.unlinkSync(fullPath);
+            }
+            return ok({ deleted: true, path: filePath });
+        } catch (err) {
+            logger.error("delete_file error", { error: err.message });
             return fail(err.message);
         }
     },
@@ -263,8 +224,9 @@ export const downloadFileTool = new DynamicStructuredTool({
 
 export const fileTools = [
     listFilesTool,
-    searchDriveTool,
-    createDocumentTool,
-    uploadFileTool,
-    downloadFileTool,
+    searchFilesTool,
+    readFileTool,
+    createFileTool,
+    writeFileTool,
+    deleteFileTool,
 ];
