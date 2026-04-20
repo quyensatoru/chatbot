@@ -49,12 +49,9 @@ const initBotMattermost = () => {
     }
 
     ws.onclose = () => {
-        ws = new WebSocket('wss://chat.bsscommerce.com/api/v4/websocket', {
-            headers: {
-                Cookie: 'MMAUTHTOKEN=8391o88gqifkpex359yciytggo'
-            }
-        });
         console.log("disconnect websoket mattermost company successful")
+        ws = null;
+        initBotMattermost()
     }
 
     ws.onmessage = async (msg) => {

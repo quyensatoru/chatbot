@@ -11,7 +11,11 @@
   "type": "module",
   "main": "backend/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run backend/__tests__/unit",
+    "test:integration": "vitest run backend/__tests__/integration",
     "dev:server": "nodemon backend/server.js",
     "dev:rag": "node -e \"const {spawn}=require('child_process');const py=process.platform==='win32'?'.venv/Scripts/python':'.venv/bin/python';spawn(py,['rag/main.py'],{stdio:'inherit',env:{...process.env,PYTHONPATH:'./rag'}}).on('exit',c=>process.exit(c??0))\"",
     "dev:ui": "npm run dev --prefix ui",
@@ -52,7 +56,10 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.4",
     "concurrently": "^9.2.1",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.4"
   }
 }
