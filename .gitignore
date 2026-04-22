@@ -11,3 +11,7 @@ rag/data
 logs
 workspace
 data
+personality/output
+personality/node_modules
+personality/pnpm-lock.yaml
+personality/package-look.json

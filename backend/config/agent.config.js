@@ -3,24 +3,31 @@ import { createAgent } from "langchain";
 import { openChatModel } from "./llm.config.js";
 import { SYSTEM_SUMMARY_PROMPT } from "../helper/prompt.js";
 
-/**
- * @typedef {import("langchain").ReactAgent<any>} Agent
- */
+const _agentCache = new Map();
 
-/** @type {Agent} */
-let agent;
 
-const InitAgent = () => {
-    if(agent) return agent;
-    
-    agent = createAgent({
+export function getAgent(channelId, profileBlock = "") {
+    const key = channelId ?? "__default__";
+
+    if (_agentCache.has(key)) return _agentCache.get(key);
+
+    const systemPrompt = profileBlock
+        ? `${SYSTEM_SUMMARY_PROMPT}\n\n${profileBlock}`
+        : SYSTEM_SUMMARY_PROMPT;
+
+    console.log('systemPrompt: ', systemPrompt);
+    const agent = createAgent({
         model: openChatModel,
-        tools: tools,
+        tools,
         name: "chatbot-agent",
-        systemPrompt: SYSTEM_SUMMARY_PROMPT,
-    })
+        systemPrompt,
+    });
 
+    _agentCache.set(key, agent);
     return agent;
 }
 
-export default InitAgent;
+export function invalidateAgentCache() {
+    _agentCache.clear();
+    console.log("[AgentCache] Invalidated — agents will be recreated on next request");
+}

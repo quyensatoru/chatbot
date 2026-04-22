@@ -9,23 +9,23 @@ let ws;
 const thread = new Map();
 
 async function getUsername(userId) {
-  const res = await axios.get(
-    `https://chat.bsscommerce.com/api/v4/users/${userId}`,
-    {
-      headers: {
-        Cookie: 'MMAUTHTOKEN=8391o88gqifkpex359yciytggo'
-      }
-    }
-  );
+    const res = await axios.get(
+        `https://chat.bsscommerce.com/api/v4/users/${userId}`,
+        {
+            headers: {
+                Cookie: 'MMAUTHTOKEN=8391o88gqifkpex359yciytggo'
+            }
+        }
+    );
 
-  return res.data.username;
+    return res.data.username;
 }
 
 function Hash(str) {
-  return crypto
-    .createHash("sha256")
-    .update(str)
-    .digest("hex")
+    return crypto
+        .createHash("sha256")
+        .update(str)
+        .digest("hex")
 }
 
 const channelAllows = [
@@ -36,8 +36,7 @@ const channelAllows = [
 ]
 
 const initBotMattermost = () => {
-    if(ws) return
-
+    if (ws && ws.readyState === WebSocket.OPEN) return
     ws = new WebSocket('wss://chat.bsscommerce.com/api/v4/websocket', {
         headers: {
             Cookie: 'MMAUTHTOKEN=8391o88gqifkpex359yciytggo'
@@ -46,20 +45,33 @@ const initBotMattermost = () => {
 
     ws.onopen = () => {
         console.log("connect websoket mattermost company successful")
+        // heartbeat
+        setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                console.log("PING socket")
+                ws.send(JSON.stringify({ action: "ping", seq: Date.now() }));
+            }
+        }, 60000 * 5);
     }
 
     ws.onclose = () => {
         console.log("disconnect websoket mattermost company successful")
         ws = null;
-        initBotMattermost()
+        setTimeout(() => {
+            initBotMattermost();
+        }, 1000);
     }
+
+    ws.onerror = (err) => {
+        console.error("WebSocket error:", err.message);
+    };
 
     ws.onmessage = async (msg) => {
         const raw = msg.data;
         try {
             const data = JSON.parse(raw);
 
-            if(!data?.data?.post) {
+            if (!data?.data?.post) {
                 return
             }
 
@@ -67,17 +79,15 @@ const initBotMattermost = () => {
             // console.log("post: ", JSON.stringify(post, null, 2))
             const channelId = post?.channel_id;
 
-            if(data.event === "posted" && channelAllows.includes(channelId)) {
+            if (data.event === "posted" && channelAllows.includes(channelId)) {
                 const message = post?.message;
                 const sender = data.data.sender_name;
+                const matches = message.match(/(?<!\S)@\w+\b(?!\.\w)/g);
+                const content = message.replaceAll(/(?<!\S)@\w+\b(?!\.\w)/g, "")
 
-
-                if(sender === "@sa_sbc_vaho_bot") {
+                if (sender === "@sa_sbc_vaho_bot") {
                     const threadId = thread.get(Hash(message));
-                    console.log(thread)
-                    console.log("message: ", message.slice(0, 50));
-                    console.log("theadid: ", threadId)
-                    if(!threadId) {
+                    if (!threadId) {
                         return
                     }
 
@@ -88,14 +98,12 @@ const initBotMattermost = () => {
                         threadId,
                         message: {
                             role: "ai",
-                            content: message
+                            content: content
                         }
                     })
-                    
+
                     return
                 }
-
-                const matches = message.match(/(?<!\S)@\w+\b(?!\.\w)/g);
 
                 let chatHistory = []
                 let threadId = null;
@@ -106,14 +114,14 @@ const initBotMattermost = () => {
                     });
 
 
-                    if(!ai) {
+                    if (!ai) {
                         return
                     }
 
                     threadId = ai.threadId
 
                     // có nằm trong thread, có tag user nhưng ko tag bot => break
-                    if(matches && !matches.includes("@sa_sbc_vaho_bot")) {
+                    if (matches && !matches.includes("@sa_sbc_vaho_bot")) {
                         return
                     }
 
@@ -125,29 +133,29 @@ const initBotMattermost = () => {
                     chatHistory = chat.reverse().map(h => h.message);
                 } else {
                     // chat trực tiếp trong channel => nếu ko có tag bot => break
-                    if(!matches?.includes("@sa_sbc_vaho_bot")) {
+                    if (!matches?.includes("@sa_sbc_vaho_bot")) {
                         return
                     }
                     const histories = await MattermostMemoryService.findByChannelId({
                         channelId
                     });
 
-                    if(histories.length) {
+                    if (histories.length) {
                         chatHistory = histories.reverse().map(h => h.message);
                     }
                     threadId = uuidV4();
                 }
 
-                const content = message.replace(/(?<!\S)@\w+\b(?!\.\w)/g, "")
 
-                console.log("chatHistory: ", chatHistory)
+                const senderUsername = sender.replace(/^@/, "");
 
-                const result = await AgentService.chat([
-                    ...chatHistory,
-                    {
-                        role: "user", content
-                    }
-                ])
+                const result = await AgentService.chat(
+                    [
+                        ...chatHistory,
+                        { role: "user", content: `${senderUsername}: ${content}` }
+                    ],
+                    { channelId }
+                )
 
                 const ai = result[result.length - 1];
                 const reply = ai.content;
@@ -160,7 +168,7 @@ const initBotMattermost = () => {
                     message: { role: "user", content: content },
                 })
 
-                if(!post.root_id) {
+                if (!post.root_id) {
                     thread.set(Hash(`${sender} ${reply}`), threadId)
                 }
 

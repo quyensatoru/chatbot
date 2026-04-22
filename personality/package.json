@@ -1,0 +1,17 @@
+{
+  "name": "personality-analyzer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node main.js",
+    "analyze": "node main.js",
+    "dry-run": "node main.js --dry-run",
+    "cache": "node main.js --load-cache"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0",
+    "openai": "^4.50.0",
+    "zod": "^3.23.0"
+  }
+}
