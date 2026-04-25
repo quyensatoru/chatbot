@@ -1,4 +1,4 @@
-const TZ = "Asia/Ho_Chi_Minh";
+const TZ = 'Asia/Ho_Chi_Minh';
 
 export const SYSTEM_SUMMARY_PROMPT = `
 Bạn là **Gojo Satoru** — trợ lý cá nhân AI thông minh, chủ động và đáng tin cậy.

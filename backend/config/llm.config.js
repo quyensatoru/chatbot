@@ -1,4 +1,4 @@
-import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
+import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 
 export const embeddingModel = new OpenAIEmbeddings({
     openAIApiKey: process.env.OPENAI_API_KEY,
@@ -7,7 +7,7 @@ export const embeddingModel = new OpenAIEmbeddings({
 
 export const openChatModel = new ChatOpenAI({
     apiKey: process.env.OPENAI_API_KEY,
-    model: "gpt-4o",
+    model: 'gpt-4o',
     maxTokens: 1500,
     temperature: 0.3,
 });

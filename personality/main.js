@@ -8,31 +8,31 @@
  *   node main.js --dry-run         # chỉ scrape, không gọi LLM
  *   node main.js --load-cache      # dùng data đã scrape (output/scrape_cache.json)
  */
-import fs from "fs";
-import path from "path";
-import { MattermostScraper } from "./scraper/mattermost_scraper.js";
-import { analyzeUser } from "./analyzer/personality_analyzer.js";
-import { toPromptBlock } from "./models/user_profile.js";
-import { OUTPUT_DIR, MIN_MESSAGES_THRESHOLD } from "./config.js";
+import fs from 'fs';
+import path from 'path';
+import { MattermostScraper } from './scraper/mattermost_scraper.js';
+import { analyzeUser } from './analyzer/personality_analyzer.js';
+import { toPromptBlock } from './models/user_profile.js';
+import { OUTPUT_DIR, MIN_MESSAGES_THRESHOLD } from './config.js';
 
-const CACHE_FILE = "./output/scrape_cache.json";
+const CACHE_FILE = './output/scrape_cache.json';
 
 async function main() {
     const args = parseArgs();
 
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    fs.mkdirSync("./output", { recursive: true });
+    fs.mkdirSync('./output', { recursive: true });
 
     // ── 1. Scrape hoặc load cache ──────────────────────────────────────────
     let scraped;
     if (args.loadCache && fs.existsSync(CACHE_FILE)) {
         console.log(`Loading cached data from ${CACHE_FILE}...`);
-        scraped = JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"));
+        scraped = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
     } else {
-        console.log("Scraping Mattermost messages...");
+        console.log('Scraping Mattermost messages...');
         const scraper = new MattermostScraper();
         scraped = await scraper.scrapeAll();
-        fs.writeFileSync(CACHE_FILE, JSON.stringify(scraped, null, 2), "utf-8");
+        fs.writeFileSync(CACHE_FILE, JSON.stringify(scraped, null, 2), 'utf-8');
         console.log(`Cached to ${CACHE_FILE}`);
     }
 
@@ -49,7 +49,7 @@ async function main() {
     console.log(`\nFound ${targetUsers.length} users to analyze (min ${MIN_MESSAGES_THRESHOLD} messages)\n`);
 
     if (args.dryRun) {
-        console.log("Dry run — skipping LLM analysis");
+        console.log('Dry run — skipping LLM analysis');
         for (const [uid, u] of targetUsers) {
             const count = (messagesByUser[uid] ?? []).length;
             console.log(`  @${u.username} (${u.displayName}): ${count} messages`);
@@ -71,36 +71,36 @@ async function main() {
             const jsonPath = path.join(OUTPUT_DIR, `${userInfo.username}.json`);
             const txtPath = path.join(OUTPUT_DIR, `${userInfo.username}.txt`);
 
-            fs.writeFileSync(jsonPath, JSON.stringify(profile, null, 2), "utf-8");
-            fs.writeFileSync(txtPath, toPromptBlock(profile), "utf-8");
+            fs.writeFileSync(jsonPath, JSON.stringify(profile, null, 2), 'utf-8');
+            fs.writeFileSync(txtPath, toPromptBlock(profile), 'utf-8');
 
-            results.push({ username: userInfo.username, status: "ok", path: jsonPath });
+            results.push({ username: userInfo.username, status: 'ok', path: jsonPath });
             console.log(`  ✓ Saved to ${jsonPath}`);
         } catch (err) {
             console.error(`  ✗ Error: ${err.message}`);
-            results.push({ username: userInfo.username, status: "error", error: err.message });
+            results.push({ username: userInfo.username, status: 'error', error: err.message });
         }
     }
 
     // ── 4. Summary index ───────────────────────────────────────────────────
-    const indexPath = path.join(OUTPUT_DIR, "_index.json");
+    const indexPath = path.join(OUTPUT_DIR, '_index.json');
     const index = {
         generatedAt: new Date().toISOString(),
         totalUsers: results.length,
         users: results,
     };
-    fs.writeFileSync(indexPath, JSON.stringify(index, null, 2), "utf-8");
+    fs.writeFileSync(indexPath, JSON.stringify(index, null, 2), 'utf-8');
 
-    const ok = results.filter(r => r.status === "ok").length;
+    const ok = results.filter((r) => r.status === 'ok').length;
     console.log(`\nDone: ${ok}/${results.length} users analyzed. Index: ${indexPath}`);
 }
 
 function parseArgs() {
     const argv = process.argv.slice(2);
     return {
-        user: getArg(argv, "--user"),
-        dryRun: argv.includes("--dry-run"),
-        loadCache: argv.includes("--load-cache"),
+        user: getArg(argv, '--user'),
+        dryRun: argv.includes('--dry-run'),
+        loadCache: argv.includes('--load-cache'),
     };
 }
 
@@ -109,7 +109,7 @@ function getArg(argv, flag) {
     return i !== -1 ? argv[i + 1] : null;
 }
 
-main().catch(err => {
-    console.error("Fatal:", err);
+main().catch((err) => {
+    console.error('Fatal:', err);
     process.exit(1);
 });

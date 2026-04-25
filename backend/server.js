@@ -23,7 +23,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use(errorMiddleware);
-app.use("/api/", routers);
+app.use('/api/', routers);
 
 app.listen(process.env.PORT || 3000, () => {
     console.log(`Server is running on http://localhost:${process.env.PORT || 3000}`);

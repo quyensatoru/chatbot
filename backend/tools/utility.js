@@ -1,124 +1,117 @@
-import { DynamicStructuredTool } from "@langchain/core/tools";
-import { z } from "zod";
-import axios from "axios";
-import QRCode from "qrcode";
-import { config, logger, withRetry, ok, fail } from "../config/tool.config.js";
+import { DynamicStructuredTool } from '@langchain/core/tools';
+import { z } from 'zod';
+import axios from 'axios';
+import QRCode from 'qrcode';
+import { config, logger, withRetry, ok, fail } from '../config/tool.config.js';
 
 // ─── Tools ────────────────────────────────────────────────────────────────────
 
 export const translateTextTool = new DynamicStructuredTool({
-    name: "translate_text",
-    description:
-        "Dịch văn bản sang ngôn ngữ chỉ định. Hỗ trợ hầu hết các ngôn ngữ phổ biến.",
-    schema: z.object({
-        text: z.string().describe("Văn bản cần dịch"),
-        targetLanguage: z
-            .string()
-            .default("vi")
-            .describe("Ngôn ngữ đích theo mã ISO 639-1: vi, en, ja, ko, zh, fr, de, es..."),
-        sourceLanguage: z
-            .string()
-            .optional()
-            .describe("Ngôn ngữ nguồn theo mã ISO 639-1 (để trống để tự nhận diện)"),
-    }).strict(),
+    name: 'translate_text',
+    description: 'Dịch văn bản sang ngôn ngữ chỉ định. Hỗ trợ hầu hết các ngôn ngữ phổ biến.',
+    schema: z
+        .object({
+            text: z.string().describe('Văn bản cần dịch'),
+            targetLanguage: z
+                .string()
+                .default('vi')
+                .describe('Ngôn ngữ đích theo mã ISO 639-1: vi, en, ja, ko, zh, fr, de, es...'),
+            sourceLanguage: z
+                .string()
+                .optional()
+                .describe('Ngôn ngữ nguồn theo mã ISO 639-1 (để trống để tự nhận diện)'),
+        })
+        .strict(),
     func: async ({ text, targetLanguage, sourceLanguage }) => {
-        logger.info("Tool: translate_text", { targetLanguage, textLength: text.length });
+        logger.info('Tool: translate_text', { targetLanguage, textLength: text.length });
         try {
-            const langpair = `${sourceLanguage || "autodetect"}|${targetLanguage}`;
+            const langpair = `${sourceLanguage || 'autodetect'}|${targetLanguage}`;
             const res = await withRetry(() =>
-                axios.get("https://api.mymemory.translated.net/get", {
+                axios.get('https://api.mymemory.translated.net/get', {
                     params: { q: text, langpair },
                     timeout: config.defaults.toolTimeout,
-                })
+                }),
             );
 
             if (res.data.responseStatus !== 200) {
-                return fail(res.data.responseDetails || "Dịch thất bại");
+                return fail(res.data.responseDetails || 'Dịch thất bại');
             }
 
             return ok({
                 originalText: text,
                 translatedText: res.data.responseData.translatedText,
                 targetLanguage,
-                sourceLanguage: sourceLanguage || "auto",
+                sourceLanguage: sourceLanguage || 'auto',
             });
         } catch (err) {
-            logger.error("translate_text error", { error: err.message });
+            logger.error('translate_text error', { error: err.message });
             return fail(err.message);
         }
     },
 });
 
 export const calculateTool = new DynamicStructuredTool({
-    name: "calculate",
-    description:
-        "Thực hiện tính toán toán học. Hỗ trợ các phép tính cơ bản đến nâng cao.",
-    schema: z.object({
-        expression: z
-            .string()
-            .describe(
-                "Biểu thức toán học cần tính. Ví dụ: '(2 + 3) * 4', 'Math.sqrt(16)', 'Math.PI * 5 ** 2'"
-            ),
-    }).strict(),
+    name: 'calculate',
+    description: 'Thực hiện tính toán toán học. Hỗ trợ các phép tính cơ bản đến nâng cao.',
+    schema: z
+        .object({
+            expression: z
+                .string()
+                .describe("Biểu thức toán học cần tính. Ví dụ: '(2 + 3) * 4', 'Math.sqrt(16)', 'Math.PI * 5 ** 2'"),
+        })
+        .strict(),
     func: async ({ expression }) => {
-        logger.info("Tool: calculate", { expression });
+        logger.info('Tool: calculate', { expression });
         try {
             // Safe evaluation using Function constructor with limited scope
-            const safeEval = new Function(
-                "Math",
-                `"use strict"; return (${expression})`
-            );
+            const safeEval = new Function('Math', `"use strict"; return (${expression})`);
             const result = safeEval(Math);
 
-            if (typeof result !== "number" || isNaN(result)) {
-                return fail("Kết quả không hợp lệ");
+            if (typeof result !== 'number' || isNaN(result)) {
+                return fail('Kết quả không hợp lệ');
             }
 
-            return ok({ expression, result, formatted: result.toLocaleString("vi-VN") });
+            return ok({ expression, result, formatted: result.toLocaleString('vi-VN') });
         } catch (err) {
-            logger.error("calculate error", { error: err.message });
+            logger.error('calculate error', { error: err.message });
             return fail(`Lỗi tính toán: ${err.message}`);
         }
     },
 });
 
 export const convertTimezoneTool = new DynamicStructuredTool({
-    name: "convert_timezone",
-    description: "Chuyển đổi thời gian giữa các múi giờ khác nhau.",
-    schema: z.object({
-        datetime: z
-            .string()
-            .describe("Thời gian cần chuyển đổi (ISO 8601 hoặc datetime string)"),
-        fromTimezone: z
-            .string()
-            .describe("Múi giờ nguồn (ví dụ: Asia/Ho_Chi_Minh, America/New_York, UTC)"),
-        toTimezone: z
-            .string()
-            .describe("Múi giờ đích (ví dụ: Europe/London, Asia/Tokyo)"),
-    }).strict(),
+    name: 'convert_timezone',
+    description: 'Chuyển đổi thời gian giữa các múi giờ khác nhau.',
+    schema: z
+        .object({
+            datetime: z.string().describe('Thời gian cần chuyển đổi (ISO 8601 hoặc datetime string)'),
+            fromTimezone: z.string().describe('Múi giờ nguồn (ví dụ: Asia/Ho_Chi_Minh, America/New_York, UTC)'),
+            toTimezone: z.string().describe('Múi giờ đích (ví dụ: Europe/London, Asia/Tokyo)'),
+        })
+        .strict(),
     func: async ({ datetime, fromTimezone, toTimezone }) => {
-        logger.info("Tool: convert_timezone", { fromTimezone, toTimezone });
+        logger.info('Tool: convert_timezone', { fromTimezone, toTimezone });
         try {
             const sourceDate = new Date(datetime);
-            if (isNaN(sourceDate.getTime())) return fail("Định dạng thời gian không hợp lệ");
+            if (isNaN(sourceDate.getTime())) return fail('Định dạng thời gian không hợp lệ');
 
-            const sourceStr = sourceDate.toLocaleString("vi-VN", {
+            const sourceStr = sourceDate.toLocaleString('vi-VN', {
                 timeZone: fromTimezone,
-                dateStyle: "full",
-                timeStyle: "long",
+                dateStyle: 'full',
+                timeStyle: 'long',
             });
 
-            const targetStr = sourceDate.toLocaleString("vi-VN", {
+            const targetStr = sourceDate.toLocaleString('vi-VN', {
                 timeZone: toTimezone,
-                dateStyle: "full",
-                timeStyle: "long",
+                dateStyle: 'full',
+                timeStyle: 'long',
             });
 
             // Offset info
             const getOffset = (tz) => {
                 const d = new Date();
-                const s = d.toLocaleString("en", { timeZone: tz, timeZoneName: "short" });
-                return s.split(" ").pop();
+                const s = d.toLocaleString('en', { timeZone: tz, timeZoneName: 'short' });
+                return s.split(' ').pop();
             };
 
             return ok({
@@ -127,44 +120,40 @@ export const convertTimezoneTool = new DynamicStructuredTool({
                 isoUTC: sourceDate.toISOString(),
             });
         } catch (err) {
-            logger.error("convert_timezone error", { error: err.message });
+            logger.error('convert_timezone error', { error: err.message });
             return fail(err.message);
         }
     },
 });
 
 export const getCurrentTimeTool = new DynamicStructuredTool({
-    name: "get_current_time",
-    description: "Lấy ngày giờ hiện tại theo múi giờ chỉ định hoặc mặc định.",
-    schema: z.object({
-        timezone: z
-            .string()
-            .optional()
-            .describe("Múi giờ (mặc định: Asia/Ho_Chi_Minh)"),
-        format: z
-            .enum(["full", "date", "time", "iso"])
-            .default("full")
-            .describe("Định dạng trả về"),
-    }).strict(),
+    name: 'get_current_time',
+    description: 'Lấy ngày giờ hiện tại theo múi giờ chỉ định hoặc mặc định.',
+    schema: z
+        .object({
+            timezone: z.string().optional().describe('Múi giờ (mặc định: Asia/Ho_Chi_Minh)'),
+            format: z.enum(['full', 'date', 'time', 'iso']).default('full').describe('Định dạng trả về'),
+        })
+        .strict(),
     func: async ({ timezone, format }) => {
         const tz = timezone || config.defaults.timezone;
-        logger.info("Tool: get_current_time", { tz });
+        logger.info('Tool: get_current_time', { tz });
         try {
             const now = new Date();
             let formatted;
 
             switch (format) {
-                case "iso":
+                case 'iso':
                     formatted = now.toISOString();
                     break;
-                case "date":
-                    formatted = now.toLocaleDateString("vi-VN", { timeZone: tz, dateStyle: "full" });
+                case 'date':
+                    formatted = now.toLocaleDateString('vi-VN', { timeZone: tz, dateStyle: 'full' });
                     break;
-                case "time":
-                    formatted = now.toLocaleTimeString("vi-VN", { timeZone: tz, timeStyle: "long" });
+                case 'time':
+                    formatted = now.toLocaleTimeString('vi-VN', { timeZone: tz, timeStyle: 'long' });
                     break;
                 default:
-                    formatted = now.toLocaleString("vi-VN", { timeZone: tz, dateStyle: "full", timeStyle: "long" });
+                    formatted = now.toLocaleString('vi-VN', { timeZone: tz, dateStyle: 'full', timeStyle: 'long' });
             }
 
             return ok({
@@ -172,90 +161,92 @@ export const getCurrentTimeTool = new DynamicStructuredTool({
                 formatted,
                 iso: now.toISOString(),
                 timestamp: now.getTime(),
-                dayOfWeek: now.toLocaleDateString("vi-VN", { timeZone: tz, weekday: "long" }),
+                dayOfWeek: now.toLocaleDateString('vi-VN', { timeZone: tz, weekday: 'long' }),
             });
         } catch (err) {
-            logger.error("get_current_time error", { error: err.message });
+            logger.error('get_current_time error', { error: err.message });
             return fail(err.message);
         }
     },
 });
 
 export const generateQrCodeTool = new DynamicStructuredTool({
-    name: "generate_qr_code",
-    description: "Tạo mã QR từ văn bản hoặc URL và lưu thành file ảnh.",
-    schema: z.object({
-        content: z.string().describe("Nội dung cần mã hóa thành QR (URL, text, thông tin liên hệ...)"),
-        outputPath: z
-            .string()
-            .default("./qr_code.png")
-            .describe("Đường dẫn lưu file QR (PNG)"),
-        size: z.number().int().min(100).max(1000).default(300).describe("Kích thước ảnh (px)"),
-    }).strict(),
+    name: 'generate_qr_code',
+    description: 'Tạo mã QR từ văn bản hoặc URL và lưu thành file ảnh.',
+    schema: z
+        .object({
+            content: z.string().describe('Nội dung cần mã hóa thành QR (URL, text, thông tin liên hệ...)'),
+            outputPath: z.string().default('./qr_code.png').describe('Đường dẫn lưu file QR (PNG)'),
+            size: z.number().int().min(100).max(1000).default(300).describe('Kích thước ảnh (px)'),
+        })
+        .strict(),
     func: async ({ content, outputPath, size }) => {
-        logger.info("Tool: generate_qr_code", { content: content.slice(0, 50) });
+        logger.info('Tool: generate_qr_code', { content: content.slice(0, 50) });
         try {
             await QRCode.toFile(outputPath, content, {
                 width: size,
                 margin: 2,
-                color: { dark: "#000000", light: "#ffffff" },
-                errorCorrectionLevel: "M",
+                color: { dark: '#000000', light: '#ffffff' },
+                errorCorrectionLevel: 'M',
             });
             return ok({ generated: true, outputPath, content: content.slice(0, 100), size });
         } catch (err) {
-            logger.error("generate_qr_code error", { error: err.message });
+            logger.error('generate_qr_code error', { error: err.message });
             return fail(err.message);
         }
     },
 });
 
 export const shortenUrlTool = new DynamicStructuredTool({
-    name: "shorten_url",
-    description: "Rút gọn URL dài thành URL ngắn hơn bằng TinyURL.",
-    schema: z.object({
-        url: z.string().url().describe("URL đầy đủ cần rút gọn"),
-        alias: z.string().optional().describe("Tên tùy chỉnh cho URL rút gọn (nếu có)"),
-    }).strict(),
+    name: 'shorten_url',
+    description: 'Rút gọn URL dài thành URL ngắn hơn bằng TinyURL.',
+    schema: z
+        .object({
+            url: z.string().url().describe('URL đầy đủ cần rút gọn'),
+            alias: z.string().optional().describe('Tên tùy chỉnh cho URL rút gọn (nếu có)'),
+        })
+        .strict(),
     func: async ({ url, alias }) => {
-        logger.info("Tool: shorten_url", { url });
+        logger.info('Tool: shorten_url', { url });
         try {
             const params = new URLSearchParams({ url });
-            if (alias) params.append("alias", alias);
+            if (alias) params.append('alias', alias);
 
             const res = await withRetry(() =>
                 axios.get(`https://tinyurl.com/api-create.php?${params}`, {
                     timeout: config.defaults.toolTimeout,
-                })
+                }),
             );
 
             return ok({ originalUrl: url, shortUrl: res.data });
         } catch (err) {
-            logger.error("shorten_url error", { error: err.message });
+            logger.error('shorten_url error', { error: err.message });
             return fail(err.message);
         }
     },
 });
 
 export const getExchangeRateTool = new DynamicStructuredTool({
-    name: "get_exchange_rate",
-    description: "Lấy tỷ giá ngoại tệ hiện tại giữa các đồng tiền.",
-    schema: z.object({
-        baseCurrency: z.string().length(3).toUpperCase().describe("Đồng tiền gốc (ví dụ: USD, VND, EUR)"),
-        targetCurrencies: z
-            .array(z.string().length(3))
-            .max(10)
-            .describe("Danh sách đồng tiền đích cần quy đổi (ví dụ: ['VND', 'EUR', 'JPY'])"),
-        amount: z.number().positive().default(1).describe("Số tiền cần quy đổi"),
-    }).strict(),
+    name: 'get_exchange_rate',
+    description: 'Lấy tỷ giá ngoại tệ hiện tại giữa các đồng tiền.',
+    schema: z
+        .object({
+            baseCurrency: z.string().length(3).toUpperCase().describe('Đồng tiền gốc (ví dụ: USD, VND, EUR)'),
+            targetCurrencies: z
+                .array(z.string().length(3))
+                .max(10)
+                .describe("Danh sách đồng tiền đích cần quy đổi (ví dụ: ['VND', 'EUR', 'JPY'])"),
+            amount: z.number().positive().default(1).describe('Số tiền cần quy đổi'),
+        })
+        .strict(),
     func: async ({ baseCurrency, targetCurrencies, amount }) => {
-        logger.info("Tool: get_exchange_rate", { baseCurrency });
+        logger.info('Tool: get_exchange_rate', { baseCurrency });
         try {
             const base = baseCurrency.toUpperCase();
             const res = await withRetry(() =>
-                axios.get(
-                    `https://api.exchangerate-api.com/v4/latest/${base}`,
-                    { timeout: config.defaults.toolTimeout }
-                )
+                axios.get(`https://api.exchangerate-api.com/v4/latest/${base}`, {
+                    timeout: config.defaults.toolTimeout,
+                }),
             );
 
             const rates = res.data.rates;
@@ -278,7 +269,7 @@ export const getExchangeRateTool = new DynamicStructuredTool({
                 conversions: result,
             });
         } catch (err) {
-            logger.error("get_exchange_rate error", { error: err.message });
+            logger.error('get_exchange_rate error', { error: err.message });
             return fail(err.message);
         }
     },

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import AgentService from "../services/agent.service.js";
-import RagService from "../services/rag.service.js";
+import AgentService from '../services/agent.service.js';
+import RagService from '../services/rag.service.js';
 import { getSession, saveSession } from '../helper/storage.js';
 
 const ChatController = {
@@ -25,11 +25,11 @@ const ChatController = {
                 sources: result.sources || [],
                 selectedStrategies: result.selected_strategies || [],
                 timestamp: new Date(),
-            }
+            };
 
             return res.status(200).json({ success: true, data: { response: response } });
         } catch (err) {
-            console.error("error: " + err.message);
+            console.error('error: ' + err.message);
             return res.status(500).json({ success: false, error: 'Chat failed' });
         }
     },
@@ -41,27 +41,19 @@ const ChatController = {
                 return res.status(400).json({ success: false, error: 'Query is required' });
             }
 
-            if(!conversationId) {
+            if (!conversationId) {
                 conversationId = uuidv4();
             }
 
-            console.log("conversationId: ", conversationId)
-
             let history = getSession(conversationId);
 
-            console.log("history: ", history)
-
-            const messages = [
-                ...history,
-                { role: "user", content: query }
-            ];
+            const messages = [...history, { role: 'user', content: query }];
 
             const result = await AgentService.chat(messages);
             const lastMessage = result[result.length - 1];
-            console.log("lastMessage: ", lastMessage.content)
 
-            history.push({ role: "user", content: query });
-            history.push({ role: "ai", content: lastMessage.content });
+            history.push({ role: 'user', content: query });
+            history.push({ role: 'ai', content: lastMessage.content });
 
             history = history.slice(-10);
 
@@ -79,10 +71,10 @@ const ChatController = {
 
             return res.status(200).json({ success: true, data: { response } });
         } catch (err) {
-            console.error("error: " + err.message);
+            console.error('error: ' + err.message);
             return res.status(500).json({ success: false, error: 'Agent chat failed' });
         }
-    }
-}
+    },
+};
 
 export default ChatController;

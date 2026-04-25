@@ -1,14 +1,13 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const PROFILES_DIR = path.resolve(__dirname, "../../personality/output/profiles");
-const CACHE_FILE = path.resolve(__dirname, "../../personality/output/scrape_cache.json");
+const PROFILES_DIR = path.resolve(__dirname, '../../personality/output/profiles');
+const CACHE_FILE = path.resolve(__dirname, '../../personality/output/scrape_cache.json');
 
 const MAX_PROFILES_PER_CHANNEL = 10;
-
 
 let _channelUserMap = null;
 let _profileTextCache = new Map();
@@ -19,11 +18,11 @@ function buildChannelUserMap() {
     _channelUserMap = new Map();
 
     if (!fs.existsSync(CACHE_FILE)) {
-        console.warn("[ProfileService] scrape_cache.json not found, profiles disabled");
+        console.warn('[ProfileService] scrape_cache.json not found, profiles disabled');
         return _channelUserMap;
     }
 
-    const { users, messagesByUser } = JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"));
+    const { users, messagesByUser } = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
 
     const channelActivity = {};
 
@@ -56,7 +55,7 @@ function readProfileText(username) {
     const txtPath = path.join(PROFILES_DIR, `${username}.txt`);
     if (!fs.existsSync(txtPath)) return null;
 
-    const content = fs.readFileSync(txtPath, "utf-8").trim();
+    const content = fs.readFileSync(txtPath, 'utf-8').trim();
     _profileTextCache.set(username, content);
     return content;
 }
@@ -66,8 +65,7 @@ const ProfileService = {
         const map = buildChannelUserMap();
         const users = map.get(channelId) ?? [];
 
-        const selected = users
-            .slice(0, MAX_PROFILES_PER_CHANNEL);
+        const selected = users.slice(0, MAX_PROFILES_PER_CHANNEL);
 
         if (!selected.length) return null;
 
@@ -80,18 +78,18 @@ const ProfileService = {
         if (!blocks.length) return null;
 
         return [
-            "---",
+            '---',
             `## Personality Profiles — ${blocks.length} thành viên trong channel này`,
-            "(Dùng thông tin này để điều chỉnh cách trả lời phù hợp với từng người)\n",
-            blocks.join("\n\n---\n\n"),
-            "---",
-        ].join("\n");
+            '(Dùng thông tin này để điều chỉnh cách trả lời phù hợp với từng người)\n',
+            blocks.join('\n\n---\n\n'),
+            '---',
+        ].join('\n');
     },
 
     invalidate() {
         _channelUserMap = null;
         _profileTextCache.clear();
-        console.log("[ProfileService] Cache invalidated");
+        console.log('[ProfileService] Cache invalidated');
     },
 };
 

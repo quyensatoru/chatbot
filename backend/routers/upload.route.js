@@ -36,9 +36,8 @@ const upload = multer({
     },
 });
 
-
 const UploadRouter = Router();
 
-UploadRouter.post('/', upload.single("file"), UploadController.uploadFile)
+UploadRouter.post('/', upload.single('file'), UploadController.uploadFile);
 
 export default UploadRouter;

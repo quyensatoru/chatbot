@@ -50,20 +50,20 @@ AI Agent tự động tích hợp với Mattermost, có khả năng thực hiệ
 
 ## Tech Stack
 
-| Layer | Công nghệ |
-|-------|-----------|
-| **LLM** | OpenAI GPT-4o, LangChain |
-| **Backend** | Node.js, Express 5, LangChain JS |
-| **RAG Service** | Python, FastAPI, Uvicorn |
-| **Vector DB** | ChromaDB |
-| **Graph DB** | Neo4j |
-| **Database** | MongoDB + Mongoose |
-| **Scheduling** | node-cron |
-| **Validation** | Zod |
-| **Logging** | Winston |
-| **Frontend** | React 19, Vite, Axios |
-| **Embeddings** | OpenAI text-embedding-3-small |
-| **Container** | Docker + Docker Compose |
+| Layer           | Công nghệ                        |
+| --------------- | -------------------------------- |
+| **LLM**         | OpenAI GPT-4o, LangChain         |
+| **Backend**     | Node.js, Express 5, LangChain JS |
+| **RAG Service** | Python, FastAPI, Uvicorn         |
+| **Vector DB**   | ChromaDB                         |
+| **Graph DB**    | Neo4j                            |
+| **Database**    | MongoDB + Mongoose               |
+| **Scheduling**  | node-cron                        |
+| **Validation**  | Zod                              |
+| **Logging**     | Winston                          |
+| **Frontend**    | React 19, Vite, Axios            |
+| **Embeddings**  | OpenAI text-embedding-3-small    |
+| **Container**   | Docker + Docker Compose          |
 
 ---
 
@@ -119,21 +119,21 @@ mattermost-agent/
 
 ## Công cụ (Tools)
 
-| Nhóm | Mô tả |
-|------|-------|
-| **Calendar** | Tạo/xem/cập nhật/xóa lịch hẹn qua Cal.com API |
-| **Email** | Gửi, đọc, tìm kiếm, nháp email qua SMTP/IMAP |
-| **Tasks** | Tạo và quản lý task, ghi chú trên Notion |
-| **Messaging** | Gửi tin nhắn, thông báo, ảnh, lên lịch gửi trên Mattermost |
-| **Automation** | Tạo cron job định kỳ bằng ngôn ngữ tự nhiên, persistent qua restart |
-| **File** | Liệt kê, tìm kiếm, đọc, viết file trên hệ thống |
-| **Document RAG** | Truy vấn tài liệu đã index bằng RAG đa chiến lược |
-| **Web Search** | Tìm kiếm internet realtime qua Tavily |
-| **Finance** | Ghi chép và xem chi tiêu qua Google Sheets |
-| **Utility** | Dịch thuật, rút gọn URL, tạo QR code, chuyển đổi múi giờ |
-| **Math** | Tính toán biểu thức phức tạp bằng Math.js |
-| **Time** | Lấy giờ hiện tại theo múi giờ bất kỳ |
-| **API Call** | Thực hiện HTTP request (GET/POST/PUT/PATCH/DELETE) tùy ý |
+| Nhóm             | Mô tả                                                               |
+| ---------------- | ------------------------------------------------------------------- |
+| **Calendar**     | Tạo/xem/cập nhật/xóa lịch hẹn qua Cal.com API                       |
+| **Email**        | Gửi, đọc, tìm kiếm, nháp email qua SMTP/IMAP                        |
+| **Tasks**        | Tạo và quản lý task, ghi chú trên Notion                            |
+| **Messaging**    | Gửi tin nhắn, thông báo, ảnh, lên lịch gửi trên Mattermost          |
+| **Automation**   | Tạo cron job định kỳ bằng ngôn ngữ tự nhiên, persistent qua restart |
+| **File**         | Liệt kê, tìm kiếm, đọc, viết file trên hệ thống                     |
+| **Document RAG** | Truy vấn tài liệu đã index bằng RAG đa chiến lược                   |
+| **Web Search**   | Tìm kiếm internet realtime qua Tavily                               |
+| **Finance**      | Ghi chép và xem chi tiêu qua Google Sheets                          |
+| **Utility**      | Dịch thuật, rút gọn URL, tạo QR code, chuyển đổi múi giờ            |
+| **Math**         | Tính toán biểu thức phức tạp bằng Math.js                           |
+| **Time**         | Lấy giờ hiện tại theo múi giờ bất kỳ                                |
+| **API Call**     | Thực hiện HTTP request (GET/POST/PUT/PATCH/DELETE) tùy ý            |
 
 ---
 
@@ -141,11 +141,11 @@ mattermost-agent/
 
 Ba chiến lược retrieval được kết hợp tự động:
 
-| Chiến lược | Cơ chế | Phù hợp nhất |
-|-----------|--------|-------------|
-| **Traditional** | Semantic search với OpenAI embeddings + Chroma | Câu hỏi chung, tìm kiếm nhanh |
-| **Tree** | Phân cấp tài liệu, tóm tắt theo tầng | Tài liệu dài, cần tổng quan |
-| **Graph** | Knowledge graph (Neo4j), trích xuất entity + quan hệ | Câu hỏi thực thể, quan hệ phức tạp |
+| Chiến lược      | Cơ chế                                               | Phù hợp nhất                       |
+| --------------- | ---------------------------------------------------- | ---------------------------------- |
+| **Traditional** | Semantic search với OpenAI embeddings + Chroma       | Câu hỏi chung, tìm kiếm nhanh      |
+| **Tree**        | Phân cấp tài liệu, tóm tắt theo tầng                 | Tài liệu dài, cần tổng quan        |
+| **Graph**       | Knowledge graph (Neo4j), trích xuất entity + quan hệ | Câu hỏi thực thể, quan hệ phức tạp |
 
 **Định dạng tài liệu hỗ trợ:** PDF, DOCX, TXT, Markdown, JSON, CSV
 
@@ -236,6 +236,7 @@ npm run dev
 ```
 
 Lệnh này chạy đồng thời:
+
 - **Backend API** → http://localhost:3000
 - **RAG Service** → http://localhost:8001
 - **Web UI** → http://localhost:5173
@@ -260,11 +261,11 @@ docker-compose up -d
 
 ### Chat & Agent
 
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `POST` | `/api/chat` | Chat đơn giản với RAG (không có tools) |
-| `POST` | `/api/chat/agent` | Agent đầy đủ với 60+ tools |
-| `GET` | `/api/health` | Health check |
+| Method | Endpoint          | Mô tả                                  |
+| ------ | ----------------- | -------------------------------------- |
+| `POST` | `/api/chat`       | Chat đơn giản với RAG (không có tools) |
+| `POST` | `/api/chat/agent` | Agent đầy đủ với 60+ tools             |
+| `GET`  | `/api/health`     | Health check                           |
 
 #### POST `/api/chat/agent`
 
@@ -313,28 +314,28 @@ docker-compose up -d
 
 ### Tài liệu
 
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `POST` | `/api/upload` | Upload tài liệu vào RAG |
-| `GET` | `/api/documents` | Danh sách tài liệu đã index |
-| `DELETE` | `/api/documents/:id` | Xóa tài liệu |
+| Method   | Endpoint             | Mô tả                       |
+| -------- | -------------------- | --------------------------- |
+| `POST`   | `/api/upload`        | Upload tài liệu vào RAG     |
+| `GET`    | `/api/documents`     | Danh sách tài liệu đã index |
+| `DELETE` | `/api/documents/:id` | Xóa tài liệu                |
 
 ---
 
 ## Tích hợp bên ngoài
 
-| Dịch vụ | Mục đích | Biến env cần thiết |
-|---------|----------|--------------------|
-| **OpenAI** | LLM + embeddings | `OPENAI_API_KEY` |
-| **Mattermost** | Chat bot | `MATTERMOST_BOT_URL`, `MATTERMOST_CHANNEL_ID` |
-| **MongoDB** | Lịch sử hội thoại | `MONGODB_URI` |
-| **ChromaDB** | Vector database | `CHROMA_HOST`, `CHROMA_PORT` |
-| **Neo4j** | Graph retrieval | `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` |
-| **Tavily** | Tìm kiếm web | `TAVILY_API_KEY` |
-| **Google APIs** | Calendar, Sheets | OAuth2 credentials |
-| **Notion** | Task management | `NOTION_API_KEY` |
-| **Cal.com** | Scheduling | `CAL_API` |
-| **Gmail/SMTP** | Email | `EMAIL_USER`, `EMAIL_PASSWORD` |
+| Dịch vụ         | Mục đích          | Biến env cần thiết                              |
+| --------------- | ----------------- | ----------------------------------------------- |
+| **OpenAI**      | LLM + embeddings  | `OPENAI_API_KEY`                                |
+| **Mattermost**  | Chat bot          | `MATTERMOST_BOT_URL`, `MATTERMOST_CHANNEL_ID`   |
+| **MongoDB**     | Lịch sử hội thoại | `MONGODB_URI`                                   |
+| **ChromaDB**    | Vector database   | `CHROMA_HOST`, `CHROMA_PORT`                    |
+| **Neo4j**       | Graph retrieval   | `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` |
+| **Tavily**      | Tìm kiếm web      | `TAVILY_API_KEY`                                |
+| **Google APIs** | Calendar, Sheets  | OAuth2 credentials                              |
+| **Notion**      | Task management   | `NOTION_API_KEY`                                |
+| **Cal.com**     | Scheduling        | `CAL_API`                                       |
+| **Gmail/SMTP**  | Email             | `EMAIL_USER`, `EMAIL_PASSWORD`                  |
 
 ---
 

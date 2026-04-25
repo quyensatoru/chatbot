@@ -1,5 +1,5 @@
-import { ChromaClient } from "chromadb";
-import { embeddingModel } from "./llm.config.js";
+import { ChromaClient } from 'chromadb';
+import { embeddingModel } from './llm.config.js';
 
 let instance = {
     documentCollection: null,
@@ -29,20 +29,20 @@ export const ChromaDB = async () => {
     }
 
     const chroma = new ChromaClient({
-        host: process.env.CHROMA_HOST || "localhost",
+        host: process.env.CHROMA_HOST || 'localhost',
         port: process.env.CHROMA_PORT || 8000,
         database: process.env.CHROMA_DB,
     });
 
-    console.log("ChromaDB vector DB connected");
+    console.log('ChromaDB vector DB connected');
 
     const documentCollection = await chroma.getOrCreateCollection({
-        name: "document",
+        name: 'document',
         embeddingFunction: chromaEmbedder,
     });
 
     const searchCollection = await chroma.getOrCreateCollection({
-        name: "search",
+        name: 'search',
     });
 
     instance = {

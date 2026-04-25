@@ -10,23 +10,23 @@ Nguyên tắc:
 - Viết persona_summary và interaction_guide bằng tiếng Việt, ngắn gọn, thực tế`;
 
 export function buildAnalysisPrompt({ userInfo, stats, sampleText }) {
-  return `Phân tích tính cách của user sau dựa trên ${stats.totalMessages} tin nhắn từ Mattermost.
+    return `Phân tích tính cách của user sau dựa trên ${stats.totalMessages} tin nhắn từ Mattermost.
 
 ## Thông tin user
 - Username: ${userInfo.username}
 - Display name: ${userInfo.displayName}
-- Position: ${userInfo.position || "N/A"}
+- Position: ${userInfo.position || 'N/A'}
 
 ## Thống kê hành vi
 - Tổng tin nhắn: ${stats.totalMessages}
-- Kênh hoạt động: ${stats.channelsActive.slice(0, 6).join(", ")}
-- Thời gian hoạt động chính: ${stats.activeTimeSlots.join(", ") || "N/A"}
-- Ngày hoạt động nhiều nhất: ${stats.mostActiveDay ?? "N/A"}
+- Kênh hoạt động: ${stats.channelsActive.slice(0, 6).join(', ')}
+- Thời gian hoạt động chính: ${stats.activeTimeSlots.join(', ') || 'N/A'}
+- Ngày hoạt động nhiều nhất: ${stats.mostActiveDay ?? 'N/A'}
 - Độ dài tin nhắn trung bình: ${stats.avgMessageLength} ký tự
 - Tỉ lệ reply (trong thread): ${stats.replyRatio}%
 - Tỉ lệ chia sẻ file: ${stats.fileRatio}%
 - Số emoji sử dụng: ${stats.emojiCount}
-- Từ/cụm từ hay dùng nhất: ${stats.topWords.slice(0, 15).join(", ")}
+- Từ/cụm từ hay dùng nhất: ${stats.topWords.slice(0, 15).join(', ')}
 
 ## Mẫu tin nhắn đại diện (tối đa 100 tin, đa dạng kênh và thời gian)
 ${sampleText}
