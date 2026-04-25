@@ -40,11 +40,11 @@ const initBotMattermost = () => {
         console.log('connect websoket mattermost company successful');
         // heartbeat
         setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
                 console.log('PING socket');
                 ws.send(JSON.stringify({ action: 'ping', seq: Date.now() }));
             }
-        }, 60000 * 5);
+        }, 60000 * 2);
     };
 
     ws.onclose = () => {
@@ -69,7 +69,6 @@ const initBotMattermost = () => {
             }
 
             const post = JSON.parse(data?.data?.post);
-            // console.log("post: ", JSON.stringify(post, null, 2))
             const channelId = post?.channel_id;
 
             if (data.event === 'posted' && channelAllows.includes(channelId)) {
@@ -78,6 +77,7 @@ const initBotMattermost = () => {
                 const matches = message.match(/(?<!\S)@\w+\b(?!\.\w)/g);
                 const content = message.replaceAll(/(?<!\S)@\w+\b(?!\.\w)/g, '');
 
+                // reject chatbot
                 if (sender === '@sa_sbc_vaho_bot') {
                     const threadId = thread.get(Hash(message));
                     if (!threadId) {
@@ -104,6 +104,7 @@ const initBotMattermost = () => {
                     // chat trong thread của bot check xem root id có phải là thread của bot ko
                     const ai = await MattermostMemoryService.findOne({
                         rootId: post.root_id,
+                        senderName: '@sa_sbc_vaho_bot'
                     });
 
                     if (!ai) {
@@ -125,9 +126,26 @@ const initBotMattermost = () => {
                     chatHistory = chat.reverse().map((h) => h.message);
                 } else {
                     // chat trực tiếp trong channel => nếu ko có tag bot => break
-                    if (!matches?.includes('@sa_sbc_vaho_bot')) {
+
+                    const taggedBot = matches?.includes('@sa_sbc_vaho_bot');
+                    let shouldReply;
+
+                    if(!taggedBot) {
+                        //decision có lên reply ko
+                        const decision = await AgentService.decision(
+                            [
+                                { role: 'user', content: `${content}` }
+
+                            ],
+                        );
+                        console.log('decision: ', decision)
+                        shouldReply = decision?.should_reply && decision?.confidence >= 0.6;
+                    }
+
+                    if (!taggedBot && !shouldReply) {
                         return;
                     }
+
                     const histories = await MattermostMemoryService.findByChannelId({
                         channelId,
                     });

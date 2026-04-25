@@ -9,6 +9,7 @@
         "cache": "node main.js --load-cache"
     },
     "dependencies": {
+        "@openrouter/sdk": "^0.12.21",
         "axios": "^1.7.0",
         "dotenv": "^16.4.0",
         "openai": "^4.50.0",

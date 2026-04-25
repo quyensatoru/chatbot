@@ -10,6 +10,9 @@ export const MATTERMOST_CHANNELS = (process.env.MATTERMOST_CHANNELS ?? '')
 export const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 export const OPENAI_MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o';
 
+export const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
+export const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL
+
 export const OUTPUT_DIR = process.env.OUTPUT_DIR ?? './output/profiles';
 export const MAX_PAGES_PER_CHANNEL = parseInt(process.env.MAX_PAGES_PER_CHANNEL ?? '50');
 export const MIN_MESSAGES_THRESHOLD = parseInt(process.env.MIN_MESSAGES_THRESHOLD ?? '10');

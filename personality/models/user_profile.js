@@ -176,6 +176,7 @@ export function toPromptBlock(profile) {
         `### @${profile.username} — ${profile.displayName}${profile.position ? ` (${profile.position})` : ''}`,
 
         // [1] Tín hiệu giao tiếp — BOT ĐỌC TRƯỚC TIÊN
+        `**[Email]** ${profile.email}`,
         `**[Tone signal]** ${toneSignal}`,
         `**[Humor level]** ${cs.humorLevel} | **[Directness]** ${cs.directness} | **[Verbosity]** ${cs.verbosity}`,
         `**[Emoji usage]** ${cs.emojiUsage} | **[Formality]** ${cs.languageFormality.toFixed(1)}/1.0`,

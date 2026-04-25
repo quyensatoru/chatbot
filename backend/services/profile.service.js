@@ -61,7 +61,7 @@ function readProfileText(username) {
 }
 
 const ProfileService = {
-    getPromptBlockForChannel(channelId) {
+    getPromptForChannel(channelId) {
         const map = buildChannelUserMap();
         const users = map.get(channelId) ?? [];
 
@@ -83,6 +83,17 @@ const ProfileService = {
             '(Dùng thông tin này để điều chỉnh cách trả lời phù hợp với từng người)\n',
             blocks.join('\n\n---\n\n'),
             '---',
+        ].join('\n');
+    },
+
+    getPromptForUser(username) {
+        const context = readProfileText(username);
+        return [
+            '----'
+            `## Người đang chat với bạn là 1 người: `,
+            '(Hãy dựa vào các thông tin sau để trả lời sao cho linh động với người đang chat hiện tại)\n',
+            context,
+            '----'
         ].join('\n');
     },
 

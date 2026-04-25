@@ -1,10 +1,11 @@
 import OpenAI from 'openai/index.mjs';
-import { OPENAI_API_KEY, OPENAI_MODEL } from '../config.js';
+import { OpenRouter } from "@openrouter/sdk";
+import { OPENAI_API_KEY, OPENAI_MODEL, OPENROUTER_API_KEY, OPENROUTER_MODEL } from '../config.js';
 import { SYSTEM_PROMPT, buildAnalysisPrompt } from '../prompts/analysis_prompt.js';
 import { computeStats, pickSampleMessages } from './stats.js';
 import { buildProfile } from '../models/user_profile.js';
 
-const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+const client = new OpenRouter({ apiKey: OPENROUTER_API_KEY });
 
 export async function analyzeUser(userInfo, messages) {
     const stats = computeStats(messages);
@@ -18,17 +19,22 @@ export async function analyzeUser(userInfo, messages) {
 }
 
 async function callLLM(prompt) {
-    const resp = await client.chat.completions.create({
-        model: OPENAI_MODEL,
-        messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: prompt },
-        ],
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
-    });
+    try {
+        const resp = await client.chat.send({
+            chatRequest: {
+                model: OPENROUTER_MODEL,
+                messages: [
+                    { role: 'system', content: SYSTEM_PROMPT },
+                    { role: 'user', content: prompt },
+                ],
+                temperature: 0.3,
+            }
+        });
 
-    return JSON.parse(resp.choices[0].message.content);
+        return JSON.parse(resp.choices[0].message.content);
+    } catch (e) {
+        console.error("CALL LLM ERROR ", e)
+    }
 }
 
 function formatSamples(samples) {

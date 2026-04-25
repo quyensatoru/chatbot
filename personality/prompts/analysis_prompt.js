@@ -15,6 +15,7 @@ export function buildAnalysisPrompt({ userInfo, stats, sampleText }) {
 ## Thông tin user
 - Username: ${userInfo.username}
 - Display name: ${userInfo.displayName}
+- Email: ${userInfo.email}
 - Position: ${userInfo.position || 'N/A'}
 
 ## Thống kê hành vi
