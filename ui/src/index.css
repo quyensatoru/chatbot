@@ -836,6 +836,119 @@ html, body, #root {
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+/* ── Hamburger button ────────────────────────────────────── */
+.hamburger-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background var(--t);
+    flex-shrink: 0;
+}
+.hamburger-btn:hover { background: var(--bg); }
+
+/* ── Mobile sidebar overlay ──────────────────────────────── */
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 99;
+}
+
+/* ── Responsive: Tablet (≤1024px) ────────────────────────── */
+@media (max-width: 1024px) {
+    .rag-layout {
+        grid-template-columns: 300px 1fr;
+    }
+    .profile-detail {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Responsive: Mobile (≤768px) ────────────────────────── */
+@media (max-width: 768px) {
+    /* Show hamburger, hide sidebar by default */
+    .hamburger-btn { display: flex; }
+
+    /* Sidebar becomes a fixed overlay panel */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 100;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        width: 260px;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+        box-shadow: var(--shadow-lg);
+    }
+
+    /* Show backdrop when sidebar open */
+    .sidebar-backdrop.open { display: block; }
+
+    /* Main content takes full width */
+    .main-content { width: 100%; }
+
+    /* Page header padding */
+    .page-header { padding: 14px 16px; }
+    .page-body { padding: 16px; }
+
+    /* Chat adjustments */
+    .chat-header { padding: 12px 14px; }
+    .chat-messages { padding: 14px; gap: 14px; }
+    .chat-input-area { padding: 12px 14px; }
+
+    /* Message bubbles full width on mobile */
+    .msg-bubble { max-width: 100% !important; }
+    .msg-row.user .msg-bubble { max-width: 88% !important; }
+    .msg-bubble.assistant { max-width: 100% !important; }
+
+    /* RAG layout single column */
+    .rag-layout {
+        grid-template-columns: 1fr;
+    }
+
+    /* Profile grid single column */
+    .profile-detail { grid-template-columns: 1fr; }
+    .detail-section.full-width { grid-column: 1; }
+
+    /* System grid smaller */
+    .system-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+
+    /* Toast full width at bottom */
+    .toast-container {
+        bottom: 12px;
+        right: 12px;
+        left: 12px;
+    }
+    .toast { min-width: unset; max-width: 100%; }
+
+    /* Big five labels shorter on mobile */
+    .big-five-label { width: 100px; font-size: 11.5px; }
+}
+
+/* ── Responsive: Small mobile (≤480px) ───────────────────── */
+@media (max-width: 480px) {
+    .page-body { padding: 12px; }
+    .chat-messages { padding: 10px; gap: 10px; }
+    .chat-input-area { padding: 10px 12px; }
+    .stat-value { font-size: 22px; }
+    .profiles-grid { grid-template-columns: 1fr; }
+    .card-body { padding: 14px; }
+    .drop-zone { padding: 24px 14px; }
+}
+
 /* ── Typing dots ─────────────────────────────────────────── */
 .typing-dot {
     width: 7px;

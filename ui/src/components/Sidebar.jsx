@@ -53,9 +53,9 @@ const NAV = [
     },
 ];
 
-export default function Sidebar({ active, onNav, docCount, online }) {
+export default function Sidebar({ active, onNav, docCount, online, isOpen }) {
     return (
-        <aside className="sidebar">
+        <aside className={`sidebar${isOpen ? ' open' : ''}`}>
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon">🤖</div>
                 <div className="sidebar-logo-text">

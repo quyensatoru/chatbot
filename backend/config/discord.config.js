@@ -5,7 +5,8 @@ const createDiscordBot = async () => {
     const TOKEN = process.env.DISCORD_TOKEN;
 
     if (!TOKEN) {
-        throw new Error('❌ Missing DISCORD_TOKEN in env');
+        console.log('❌ Missing DISCORD_TOKEN in env');
+        return;
     }
 
     try {
