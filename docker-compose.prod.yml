@@ -7,6 +7,9 @@ services:
             MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-password}
         volumes:
             - mongodb_data:/data/db
+        ports:
+            - "27017:27017"
+        command: [ "mongod", "--bind_ip_all" ]
         restart: unless-stopped
         networks:
             - app-network
@@ -110,7 +113,6 @@ services:
         restart: unless-stopped
         networks:
             - app-network
-
 
 networks:
     app-network:
