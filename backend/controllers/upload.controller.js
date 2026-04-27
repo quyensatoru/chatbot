@@ -11,10 +11,9 @@ const UploadController = {
                 return res.status(400).json({ success: false, error: 'No file uploaded' });
             }
 
-            const fileName = req.file.filename;
-            const destination = req.file.destination;
-
-            const pathFile = path.join(process.cwd(), destination, fileName);
+            const pathFile = path.isAbsolute(req.file.path)
+                ? req.file.path
+                : path.join(process.cwd(), req.file.path);
 
             ragDocument = await RagService.upload({
                 filePath: pathFile,

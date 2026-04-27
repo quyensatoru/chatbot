@@ -43,6 +43,7 @@ const PersonalityController = {
                 return res.status(404).json({ success: false, error: 'Profile not found' });
             }
 
+            const { username } = req.params;
             const files = fs.readdirSync(PROFILES_DIR).filter((f) => f.endsWith('.json') && f !== '_index.json');
             const match = files.find((f) => f.startsWith(username));
             if (!match) return res.status(404).json({ success: false, error: 'Profile not found' });

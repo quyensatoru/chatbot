@@ -128,22 +128,23 @@ const initBotMattermost = () => {
                     // chat trực tiếp trong channel => nếu ko có tag bot => break
 
                     const taggedBot = matches?.includes('@sa_sbc_vaho_bot');
-                    let shouldReply;
+                    // let shouldReply;
 
                     if(!taggedBot) {
-                        //decision có lên reply ko
-                        const decision = await AgentService.decision(
-                            [
-                                { role: 'user', content: `${content}` }
+                        // //decision có lên reply ko
+                        // const decision = await AgentService.decision(
+                        //     [
+                        //         { role: 'user', content: `${content}` }
 
-                            ],
-                        );
-                        shouldReply = decision?.should_reply && decision?.confidence >= 0.6;
+                        //     ],
+                        // );
+                        // shouldReply = decision?.should_reply && decision?.confidence >= 0.6;
+                        return
                     }
 
-                    if (!taggedBot && !shouldReply) {
-                        return;
-                    }
+                    // if (!taggedBot && !shouldReply) {
+                    //     return;
+                    // }
 
                     const histories = await MattermostMemoryService.findByChannelId({
                         channelId,

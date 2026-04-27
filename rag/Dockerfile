@@ -12,6 +12,8 @@ RUN apt-get update \
         libmagic1 \
         poppler-utils \
         tesseract-ocr \
+        libgl1 \
+        libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir uv
 
