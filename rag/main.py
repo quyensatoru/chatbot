@@ -6,6 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from retrievers.graph import GraphRAGRetriever
@@ -40,6 +41,13 @@ app = FastAPI(
     title="Multi-Strategy RAG Service",
     version="0.1.0",
     description="Traditional + Tree + Graph RAG microservice",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv("CORS_ORIGIN", "*").split(","),
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

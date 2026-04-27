@@ -1,9 +1,18 @@
 .git
+.claude
 .env
 node_modules
 uploads
-ui/node_modules
-ui/dist
+logs
+workspace
+data
+# UI is built in its own Docker stage
+ui
+# RAG data is persisted in a named volume
 rag/data
-rag/__pycache__
-rag/**/*.pyc
+# Python artifacts
+.venv
+**/__pycache__
+**/*.pyc
+**/*.pyo
+personality

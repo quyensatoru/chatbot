@@ -1,99 +1,88 @@
-import { useState } from 'react';
-import ChatInterface from './components/ChatInterface';
-import DocumentUpload from './components/DocumentUpload';
-import DocumentList from './components/DocumentList';
+import { useState, useEffect, useCallback } from 'react';
+import Sidebar from './components/Sidebar';
+import ChatInterface from './components/chat/ChatInterface';
+import RAGManager from './components/rag/RAGManager';
+import PersonalityViewer from './components/admin/PersonalityViewer';
+import SystemPage from './components/admin/SystemPage';
+import { healthAPI } from './services/api';
 import './index.css';
 
+const PAGE_TITLES = {
+    chat: { title: 'Chat', sub: 'AI agent powered by RAG' },
+    rag: { title: 'Documents', sub: 'Upload and manage knowledge base' },
+    personality: { title: 'Personality Profiles', sub: 'User personality analytics' },
+    system: { title: 'System', sub: 'Backend status and configuration' },
+};
+
+function Toast({ toasts }) {
+    return (
+        <div className="toast-container">
+            {toasts.map((t) => (
+                <div key={t.id} className={`toast toast-${t.type}`}>
+                    <span>{t.type === 'success' ? '✓' : t.type === 'error' ? '✕' : 'ℹ'}</span>
+                    {t.message}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function App() {
-    const [documents, setDocuments] = useState([]);
-    const [refreshDocuments, setRefreshDocuments] = useState(false);
+    const [page, setPage] = useState('chat');
+    const [docCount, setDocCount] = useState(0);
+    const [online, setOnline] = useState(false);
+    const [toasts, setToasts] = useState([]);
 
-    const handleDocumentUploaded = (doc) => {
-        console.log(documents);
-        console.log('doc: ', doc);
-        setDocuments((prev) => [...prev, doc]);
-        setRefreshDocuments(!refreshDocuments);
-    };
+    useEffect(() => {
+        healthAPI.check().then((r) => setOnline(!!r?.success));
+        const id = setInterval(() => healthAPI.check().then((r) => setOnline(!!r?.success)), 30000);
+        return () => clearInterval(id);
+    }, []);
 
-    const handleDocumentDeleted = (docId) => {
-        setDocuments((prev) => prev.filter((d) => d._id !== docId));
-    };
+    const showToast = useCallback((message, type = 'info') => {
+        const id = Date.now();
+        setToasts((prev) => [...prev, { id, message, type }]);
+        setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+    }, []);
+
+    const { title, sub } = PAGE_TITLES[page];
 
     return (
-        <div style={{ display: 'flex', height: '100vh', backgroundColor: '#fff' }}>
-            <div
-                style={{
-                    width: '320px',
-                    borderRight: '1px solid #e5e7eb',
-                    backgroundColor: '#f9fafb',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden',
-                }}
-            >
-                <div
-                    style={{
-                        padding: '24px',
-                        borderBottom: '1px solid #e5e7eb',
-                    }}
-                >
-                    <h1
-                        style={{
-                            fontSize: '24px',
-                            fontWeight: 'bold',
-                            color: '#111827',
-                            margin: 0,
-                        }}
-                    >
-                        RAG Personal
-                    </h1>
-                    <p
-                        style={{
-                            fontSize: '14px',
-                            color: '#4b5563',
-                            marginTop: '4px',
-                            margin: 0,
-                        }}
-                    >
-                        Document Chatbot
-                    </p>
-                </div>
+        <div className="app-layout">
+            <Sidebar active={page} onNav={setPage} docCount={docCount} online={online} />
 
-                <div
-                    style={{
-                        padding: '16px',
-                        borderBottom: '1px solid #e5e7eb',
-                    }}
-                >
-                    <DocumentUpload onUploadSuccess={handleDocumentUploaded} />
-                </div>
+            <div className="main-content">
+                {page !== 'chat' && (
+                    <div className="page-header">
+                        <div className="page-header-left">
+                            <div className="page-title">{title}</div>
+                            <div className="page-subtitle">{sub}</div>
+                        </div>
+                    </div>
+                )}
 
-                <div
-                    style={{
-                        flex: 1,
-                        overflowY: 'auto',
-                    }}
-                >
-                    <DocumentList
-                        refresh={refreshDocuments}
-                        documents={documents}
-                        setDocuments={setDocuments}
-                        onDelete={handleDocumentDeleted}
-                    />
-                </div>
+                {page === 'chat' && <ChatInterface docCount={docCount} />}
+
+                {page === 'rag' && (
+                    <div className="page-body">
+                        <RAGManager onDocCountChange={setDocCount} onToast={showToast} />
+                    </div>
+                )}
+
+                {page === 'personality' && (
+                    <div className="page-body">
+                        <PersonalityViewer />
+                    </div>
+                )}
+
+                {page === 'system' && (
+                    <div className="page-body">
+                        <SystemPage />
+                    </div>
+                )}
             </div>
 
-            {/* Main Chat Area */}
-            <div
-                style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden',
-                }}
-            >
-                <ChatInterface documents={documents} />
-            </div>
+            <Toast toasts={toasts} />
         </div>
     );
 }

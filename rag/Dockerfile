@@ -1,8 +1,8 @@
+# syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app/agent/rag
 
@@ -12,12 +12,13 @@ RUN apt-get update \
         libmagic1 \
         poppler-utils \
         tesseract-ocr \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uv
 
 COPY requirements.txt /tmp/requirements.txt
 
-RUN pip install --upgrade pip \
-    && pip install -r /tmp/requirements.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r /tmp/requirements.txt
 
 COPY rag /app/agent/rag
 

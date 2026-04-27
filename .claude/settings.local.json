@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm dev *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(curl -s http://localhost:5174/src/App.jsx)",
+      "Bash(curl -s \"http://localhost:5174/@vite/client\")",
+      "Bash(curl -s \"http://localhost:5174/src/components/Sidebar.jsx\")",
+      "Bash(curl -s \"http://localhost:5174/src/components/chat/ChatInterface.jsx\")",
+      "Bash(curl -s \"http://localhost:5174/src/components/rag/RAGManager.jsx\")",
+      "Bash(node *)",
+      "Bash(curl -s \"http://localhost:5174/src/components/chat/MessageBubble.jsx\")",
+      "Bash(pnpm add *)",
+      "Bash(curl -s \"http://localhost:5174/node_modules/.vite/deps/react-markdown.js?v=\")",
+      "Bash(curl -s \"http://localhost:5174/@id/react-markdown\")"
+    ]
+  }
+}

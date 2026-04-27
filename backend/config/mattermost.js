@@ -138,7 +138,6 @@ const initBotMattermost = () => {
 
                             ],
                         );
-                        console.log('decision: ', decision)
                         shouldReply = decision?.should_reply && decision?.confidence >= 0.6;
                     }
 

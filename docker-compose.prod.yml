@@ -36,10 +36,10 @@ services:
             - app-network
 
     rag-service:
-        build:
-            context: .
-            dockerfile: rag/Dockerfile
+        image: quyensatoru/chatbot-rag-service:latest
         container_name: rag-service
+        ports:
+            - "8001:8001"
         env_file:
             - .env
         environment:
@@ -62,9 +62,7 @@ services:
             - app-network
 
     personality:
-        build:
-            context: ./personality
-            dockerfile: Dockerfile
+        image: quyensatoru/chatbot-personality:latest
         container_name: personality-analyzer
         env_file:
             - .env
@@ -76,15 +74,10 @@ services:
             - app-network
 
     ui:
-        build:
-            context: ./ui
-            dockerfile: Dockerfile
-            args:
-                VITE_API_URL: ${VITE_API_URL:-http://app.example.com}
-                VITE_ALLOWED_HOSTS: ${VITE_ALLOWED_HOSTS:-localhost}
+        image: quyensatoru/chatbot-ui:latest
         container_name: ui
         ports:
-            - '8000:8000'
+            - '8002:8000'
         depends_on:
             - backend
         restart: unless-stopped
@@ -92,9 +85,7 @@ services:
             - app-network
 
     backend:
-        build:
-            context: .
-            dockerfile: Dockerfile
+        image: quyensatoru/chatbot-backend:latest
         container_name: backend
         env_file:
             - .env
@@ -114,6 +105,8 @@ services:
         volumes:
             - uploads_data:/app/uploads
             - personality_output:/app/personality/output
+        ports:
+            - "3005:3000"
         restart: unless-stopped
         networks:
             - app-network

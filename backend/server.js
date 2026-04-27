@@ -8,17 +8,23 @@ import initBotMattermost from './config/mattermost.js';
 import AgentService from './services/agent.service.js';
 import { initAutomations } from './tools/automation.js';
 import { initScheduledMessages } from './tools/message_chat.js';
+import createDiscordBot from './config/discord.config.js';
 config();
 
 await connectToMongoDB();
 await initBotMattermost();
+await createDiscordBot()
 
 // Recover persistent scheduled messages and start saved automation jobs
 initScheduledMessages();
 initAutomations((messages) => AgentService.chat(messages));
 
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
