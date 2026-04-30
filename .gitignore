@@ -15,3 +15,4 @@ personality/output
 personality/node_modules
 personality/pnpm-lock.yaml
 personality/package-look.json
+dist
