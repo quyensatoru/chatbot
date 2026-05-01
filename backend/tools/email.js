@@ -69,10 +69,11 @@ export const sendEmailTool = new DynamicStructuredTool({
             body: z.string().describe('Nội dung email (hỗ trợ HTML)'),
             cc: z.array(z.string().email()).optional().describe('Danh sách CC'),
             bcc: z.array(z.string().email()).optional().describe('Danh sách BCC'),
+            attachments: z.array(z.object({ filename: z.string(), path: z.string() })).optional().describe('Tệp đính kèm (filename + base64 content)'),
         })
         .strict(),
-    func: async ({ to, subject, body, cc, bcc }) => {
-        logger.info('Tool: send_email', { to, subject });
+    func: async ({ to, subject, body, cc, bcc, attachments }) => {
+        logger.info('Tool: send_email', { to, subject, body, cc, bcc, attachments });
         try {
             const toStr = Array.isArray(to) ? to.join(', ') : to;
             const info = await sendWithSmtp({
@@ -82,6 +83,7 @@ export const sendEmailTool = new DynamicStructuredTool({
                 bcc: bcc?.join(', '),
                 subject,
                 html: body,
+                attachments: attachments,
             });
             return ok({ messageId: info.messageId, status: 'sent' });
         } catch (err) {

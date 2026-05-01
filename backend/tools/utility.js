@@ -172,11 +172,11 @@ export const getCurrentTimeTool = new DynamicStructuredTool({
 
 export const generateQrCodeTool = new DynamicStructuredTool({
     name: 'generate_qr_code',
-    description: 'Tạo mã QR từ văn bản hoặc URL và lưu thành file ảnh.',
+    description: 'Tạo mã QR từ văn bản hoặc URL và lưu thành file ảnh vào thư mục workspace trong cục bộ.',
     schema: z
         .object({
             content: z.string().describe('Nội dung cần mã hóa thành QR (URL, text, thông tin liên hệ...)'),
-            outputPath: z.string().default('./qr_code.png').describe('Đường dẫn lưu file QR (PNG)'),
+            outputPath: z.string().default('./workspace/qr_code.png').describe('Đường dẫn lưu file QR (PNG) nằm trong thư mục workspace'),
             size: z.number().int().min(100).max(1000).default(300).describe('Kích thước ảnh (px)'),
         })
         .strict(),
